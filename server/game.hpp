@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iostream>
 #include <stdio.h>
+#include <time.h>
 #include <stdlib.h>
 #include <unordered_map>
 #include <list>
@@ -130,6 +131,10 @@ class game{
           it.second.x,it.second.y,
           it.second.hp,
           it.second.pow
+        );
+        printf(KGRN"[Game]player:%s (%d,%d) \n"RESET,
+          it.first.c_str(),
+          it.second.x,it.second.y
         );
         switch(it.second.face){
           case 0:
@@ -410,7 +415,7 @@ struct per_session_data {
     snprintf(buf,256,"cremap %d %d",Game.maxX,Game.maxY);
     senduser(name,buf);
     for(auto uit:Game.players){
-      string bs="addplayer";
+      string bs="addplayer ";
       bs+=uit.first;
       senduser(name,bs);
     }
@@ -517,15 +522,24 @@ int service_callback(
     }
     return 0;
 }
-void * mainloop(void*){
-  printf(KGRN"[Main Loop] Game start success \n"RESET);
-  while( !destroy_flag){
-    
-    Game_locker.lock();
-    Game.updateplayer();
-    Game_locker.unlock();
-    
-    sleep(1);
+class Init{
+  public:
+  pthread_t mlthread;
+  Init(){
+    srand(time(0));
+    if(pthread_create(&mlthread,NULL,mainloop,NULL)!=0)
+      perror(KRED"[Main Loop] pthread_create"RESET);
   }
-}
+  static void * mainloop(void*){
+    printf(KGRN"[Main Loop] Game start success \n"RESET);
+    while( !destroy_flag){
+    
+      Game_locker.lock();
+      Game.updateplayer();
+      Game_locker.unlock();
+      
+      sleep(1);
+    }
+  }
+}init;
 #endif
