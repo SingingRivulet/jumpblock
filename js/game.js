@@ -1,6 +1,7 @@
 var jubk_map=[];
 var jubk_map_size={"x":0,"y":0};
 var jubk_player={};
+var jubk_ws;
 var jubk_me=[
   "null", //name
   0,0,    //position
@@ -8,7 +9,7 @@ var jubk_me=[
   0       //pow
 ];
 
-function jbk_setme(v1,v2,v3,v4){
+function jubk_setme(v1,v2,v3,v4){
   jubk_me[1]=v1;
   jubk_me[2]=v2;
   jubk_me[3]=v3;
@@ -16,7 +17,7 @@ function jbk_setme(v1,v2,v3,v4){
 }
 
 function jubk_send(msg){
-  
+  jubk_ws.send(msg);
 }
 
 function jubk_addplayer(unm){
@@ -27,12 +28,19 @@ function jubk_addplayer(unm){
   ];
 }
 
+jubk_face(unm,fc){
+  jubk_player[unm][3]=fc;
+}
+
 function jubk_quit(){
-  jubk_quitplayer(jubk_me[0]);
+  jubk_send("quit");
 }
 
 function jubk_quitplayer(unm){
-
+  var x=jubk_player[unm][0];
+  var y=jubk_player[unm][1];
+  jubk_map[x][y][2]="";
+  delete jubk_player[unm];
 }
 
 function jubk_createmap(x,y){
@@ -48,6 +56,13 @@ function jubk_createmap(x,y){
       ];
     }
   }
+}
+function jubk_setmapown(x,y,o){
+  if(x<0)return;
+  if(y<0)return;
+  if(x>jubk_map_size.x)return;
+  if(y>jubk_map_size.y)return;
+  jubk_map[x][y][0]=o;
 }
 
 function jubk_setmapobj(x,y,o){
@@ -73,7 +88,7 @@ function jubk_moveplayerto(unm,x,y){
     if(px>jubk_map_size.x)return;
     if(py>jubk_map_size.y)return;
     
-    jubk_map[px][py][2]=0;//set player=0;
+    jubk_map[px][py][2]="";//set player=0;
     
     jubk_player[unm][0]=x;
     jubk_player[unm][1]=y;
@@ -94,27 +109,56 @@ function jubk_put(i){
 
 function jubk_onmsg(m){
   
-  var s=m.split();
+  var s=m.split(" ");
   
   if(s[0]=="addplayer"){
     jubk_addplayer(s[1]);
   }
   if(s[0]=="cremap"){
-    jubk_createmap(s[1],s[2]);
+    jubk_createmap(
+      parseInt(s[1]),parseInt(s[2])
+    );
   }else
   if(s[0]=="quit"){
     jubk_quitplayer(s[1]);
   }else
   if(s[0]=="move"){
-    jubk_moveplayerto(s[1],s[2],s[3]);
+    jubk_moveplayerto(
+      s[1],
+      parseInt(s[2]),parseInt(s[3])
+    );
+  }else
+  if(s[0]=="face"){
+    jubk_face(s[1],parseInt(s[2]));
   }else
   if(s[0]=="setme"){
-    jubk_setme(s[1],s[2],s[3],s[4]);
+    jubk_setme(
+      parseInt(s[1]),
+      parseInt(s[2]),
+      parseInt(s[3]),
+      parseInt(s[4])
+    );
   }else
   if(s[0]=="setobj"){
-    jubk_setmapobj(s[1],s[2],s[3]);
+    jubk_setmapobj(
+      parseInt(s[1]),parseInt(s[2]),
+      parseInt(s[3])
+    );
+  }else
+  if(s[0]=="setown"){
+    jubk_setmapown(
+      parseInt(s[1]),parseInt(s[2]),
+      s[3]
+    );
   }else
   if(s[0]=="exit"){
     
   }
+}
+
+function jubk_conn(addr){
+  jubk_ws=new WebSocket(addr); 
+  jubk_ws.onmessage = function(evt){
+    jubk_onmsg(evt.data);
+  };
 }
