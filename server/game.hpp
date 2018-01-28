@@ -160,6 +160,7 @@ class game{
     block & ob=gmap.at(nx).at(ny);
     
     ob.obj=i;
+    onPut(i,nx,ny);
   }
   virtual void put(int i,const string & name){
     auto it=players.find(name);
@@ -274,7 +275,10 @@ class game{
   
   virtual void onPut(int i,int x,int y){
     char buf[256];
-    snprintf(buf,256,"setobj %d %d %d",x,y,i);
+    if(i==0)
+      snprintf(buf,256,"pick %d %d",x,y);
+    else
+      snprintf(buf,256,"setobj %d %d %d",x,y,i);
     string bs=buf;
     boardcast(bs);
   }

@@ -12,11 +12,27 @@ var jubk_me=[
 function jubk_setname(n){
   jubk_me[0]=n;
 }
+var jubk_hp_elm;
+var jubk_pw_elm;
+function jubk_set_hp(v){
+  if(jubk_hp_elm==null)
+    jubk_hp_elm=document.getElementById("jubk_hp");
+  jubk_hp_elm.innerHTML=v;
+}
+function jubk_set_pw(v){
+  if(jubk_pw_elm==null)
+    jubk_pw_elm=document.getElementById("jubk_pw");
+  jubk_pw_elm.innerHTML=v;
+}
 function jubk_setme(v1,v2,v3,v4){
   jubk_me[1]=v1;
   jubk_me[2]=v2;
+  
   jubk_me[3]=v3;
+  jubk_set_hp(v3);
+  
   jubk_me[4]=v4;
+  jubk_set_pw(v4);
 }
 
 function jubk_send(msg){
@@ -32,7 +48,7 @@ function jubk_color(){
 }
 
 function jubk_time(){
-  return new Date().getTime();
+  return (new Date().getTime())/1000;
 }
 
 function jubk_addplayer(unm){
@@ -58,7 +74,6 @@ function jubk_quitplayer(unm){
   jubk_map[x][y][2]="";
   delete jubk_player[unm];
 }
-
 function jubk_createmap(x,y){
   jubk_map_size.x=x;
   jubk_map_size.y=y;
@@ -80,7 +95,13 @@ function jubk_setmapown(x,y,o){
   if(y>jubk_map_size.y)return;
   jubk_map[x][y][0]=o;
 }
-
+function jubk_pick(x,y){
+  if(x<0)return;
+  if(y<0)return;
+  if(x>jubk_map_size.x)return;
+  if(y>jubk_map_size.y)return;
+  jubk_map[x][y][1]=0;
+}
 function jubk_setmapobj(x,y,o){
   if(x<0)return;
   if(y<0)return;
@@ -123,6 +144,18 @@ function jubk_walk(f){
   jubk_lastf=f;
   jubk_send("walk "+f);
 }
+function jubk_go_up(){
+  jubk_walk(0);
+}
+function jubk_go_down(){
+  jubk_walk(2);
+}
+function jubk_go_left(){
+  jubk_walk(3);
+}
+function jubk_go_right(){
+  jubk_walk(1);
+}
 
 function jubk_put(i){
   jubk_send("put "+i);
@@ -158,6 +191,11 @@ function jubk_onmsg(m){
       parseInt(s[2]),
       parseInt(s[3]),
       parseInt(s[4])
+    );
+  }else
+  if(s[0]=="pick"){
+    jubk_pick(
+      parseInt(s[1]),parseInt(s[2])
     );
   }else
   if(s[0]=="setobj"){

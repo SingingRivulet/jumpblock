@@ -1,9 +1,11 @@
 //screen:11*11 blocks
 var jdw_con;
+var jdw_elm;
 var jdw_camera={"x":0,"y":0};
 
 function jdw_init(){
-  jdw_con=document.getElementById("mycanvas").getContext('2d');
+  jdw_elm=document.getElementById("mycanvas");
+  jdw_con=jdw_elm.getContext('2d');
 }
 function jdw_block_scr(x,y,c){
   jdw_con.fillStyle=c;
@@ -17,7 +19,7 @@ function jdw_player_scr(x,y,f,c){
   jdw_con.strokeStyle = "black";
   jdw_con.lineWidth = 1;
   jdw_con.arc(x,y,9,0, Math.PI*2, true);
-  jdw_con.lineWidth = 4;
+  jdw_con.lineWidth = 1;
   jdw_con.moveTo(x,y);
   if(f==0){
     jdw_con.lineTo(x+5,y);
@@ -46,7 +48,7 @@ function jdw_block_abs(x,y,c){
   var p=jdw_abs2scr(x,y);
   jdw_block_scr(p.x,p.y,c);
 }
-function jdw_player_abs(bx,by,f,c,t){
+function jdw_getposi_time(bx,by,f,t){
   var x=bx;
   var y=by;
   
@@ -62,8 +64,30 @@ function jdw_player_abs(bx,by,f,c,t){
   if(f==3){
     y-=(t-1);
   }
-  
-  var p=jdw_abs2scr(x,y);
+  return {"x":x,"y":y};
+}
+
+function jdw_carema_update(){
+  var n=jubk_me[0];
+  var x=jubk_me[1];
+  var y=jubk_me[2];
+  try{
+    var p=jubk_player[n];
+    if(p){
+      var f=p[3];
+      var t=p[4];
+    }
+    var pt=jdw_getposi_time(x,y,f,t);
+    
+    jdw_camera.x=pt.x;
+    jdw_camera.y=pt.y;
+    
+  }catch(e){}
+}
+
+function jdw_player_abs(bx,by,f,c,t){
+  var pt=jdw_getposi_time(bx,by,f,t);
+  var p=jdw_abs2scr(pt.x,pt.y);
   jdw_player_scr(p.x,p.y,f,c);
 }
 
@@ -105,4 +129,11 @@ function jdw_all_block(){
       }
     }
   }
+}
+
+function jdw_render(){
+  jdw_con.clearRect(0,0,jdw_elm.width,jdw_elm.height);
+  jdw_carema_update();
+  jdw_all_block();
+  window.requestAnimationFrame(jdw_render);
 }

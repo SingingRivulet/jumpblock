@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <title>jump block</title>
+    <meta charset="utf-8"/>
     <script>
       window.onerror=function(a,b,c,d,e,f){
-        alert(a+" "+b+" "+c+" "+d+" "+e+" "+f);
+        alert("error:"+a+b+c+d+e+f);
       };
     </script>
     <script src="js/draw.js"></script>
@@ -11,10 +13,18 @@
     <script>
       window.onload=function(){
         jdw_init();
+        jdw_render();
       };
     </script>
   </head>
   <body>
-    <canvas id="mycanvas" hight="100%" width="100%"></canvas>
+    [hp:<span id="jubk_hp">0</span>] 
+    [pw:<span id="jubk_pw">0</span>]
+    <br/>
+    <canvas id="mycanvas" hight="100%" width="100%">
+      canvas is not supposed on your browser!
+    </canvas>
+    <br/>
+    by cgoxopx
   </body>
 </html>
