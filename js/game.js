@@ -23,11 +23,16 @@ function jubk_send(msg){
   jubk_ws.send(msg);
 }
 
+function jubk_time(){
+  return new Date().time();
+}
+
 function jubk_addplayer(unm){
   jubk_player[unm]=[
     0,0 //position
     0,  //color
-    0   //face to
+    0,  //face to
+    jubk_time()
   ];
 }
 
@@ -95,6 +100,8 @@ function jubk_moveplayerto(unm,x,y){
     
     jubk_player[unm][0]=x;
     jubk_player[unm][1]=y;
+    jubk_player[unm][4]=jubk_time();
+    
     jubk_map[x][y][2]=unm;
     jubk_map[x][y][1]=0;
     jubk_map[x][y][0]=unm;
