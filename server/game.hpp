@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unordered_map>
-#include <vector>
 #include <list>
 #include <string>
 #include <stdexcept>
@@ -51,6 +50,10 @@ class game{
   game(){
     times=0;
     block_buffer_times=-1;
+    gmap=NULL;
+  }
+  ~game(){
+    destroy();
   }
   struct player{
     int hp;
@@ -75,20 +78,28 @@ class game{
     string player,owner;
     int obj;
   };
-  vector<vector<block> > gmap;
+  block ** gmap;
   int maxX;
   int maxY;
   
+  void destroy(){
+    if(gmap){
+      for(int ix=0;ix<maxX;ix++)
+        delete [] gmap[ix];
+      delete [] gmap;
+    }
+  }
   void init(int x,int y){
     maxX=x;
     maxY=y;
-    gmap.resize(x);
-    for(auto it:gmap){
-      it.resize(y);
-      for(auto it2:it){
-        it2.player.clear();
-        it2.owner.clear();
-        it2.obj=0;
+    int ix,iy;
+    gmap=new block*[maxX];
+    for(ix=0;ix<maxX;ix++){
+    gmap[ix]=new block[maxY];
+      for(iy=0;iy<maxY;iy++){
+        gmap[ix][iy].player.clear();
+        gmap[ix][iy].owner.clear();
+        gmap[ix][iy].obj=0;
       }
     }
   }
@@ -152,8 +163,8 @@ class game{
     }
   }
   virtual void put(int i,int nx,int ny){
-    if(nx>maxX)return;
-    if(ny>maxY)return;
+    if(nx>=maxX)return;
+    if(ny>=maxY)return;
     if(nx<0)return;
     if(ny<0)return;
     
@@ -176,8 +187,8 @@ class game{
     }
   }
   virtual void moveplayerto(const string & name,int nx,int ny){
-    if(nx>maxX)return;
-    if(ny>maxY)return;
+    if(nx>=maxX)return;
+    if(ny>=maxY)return;
     if(nx<0)return;
     if(ny<0)return;
     
@@ -185,6 +196,9 @@ class game{
     if(it==players.end())return;
     int x=it->second.x;
     int y=it->second.y;
+    
+    if(x>=maxX)return;
+    if(y>=maxY)return;
     
     if(x>0 && y>0){
       block & ob=gmap[x][y];
@@ -248,8 +262,6 @@ class game{
   }
   
   virtual void onLogin(const string &name){
-    getmap(name);
-    
     char buf[256];
     
     snprintf(buf,256,"setname %s",name.c_str());
@@ -390,17 +402,21 @@ struct per_session_data {
   void init(struct lws *wsi_in){
     randname();
     string n=name;
+    char buf[256];
     
     Game_locker.lock();
     Game.login(name);
     Game.getblock();
-    Game_locker.unlock();
-    
-    char buf[256];
-    Game.block_buffer_locker.lock();
-    
     snprintf(buf,256,"cremap %d %d",Game.maxX,Game.maxY);
     senduser(name,buf);
+    for(auto uit:Game.players){
+      string bs="addplayer";
+      bs+=uit.first;
+      senduser(name,bs);
+    }
+    Game_locker.unlock();
+    
+    Game.block_buffer_locker.lock();
     for(auto it:Game.block_buffer){
       snprintf(buf,256,"%s",it.c_str());
       senduser(name,buf);
