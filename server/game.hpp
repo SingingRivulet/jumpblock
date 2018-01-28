@@ -157,7 +157,7 @@ class game{
     if(nx<0)return;
     if(ny<0)return;
     
-    block & ob=gmap.at(nx).at(ny);
+    block & ob=gmap[nx][ny];
     
     ob.obj=i;
     onPut(i,nx,ny);
@@ -187,11 +187,11 @@ class game{
     int y=it->second.y;
     
     if(x>0 && y>0){
-      block & ob=gmap.at(x).at(y);
+      block & ob=gmap[x][y];
       ob.player.clear();
     }
     
-    block & b=gmap.at(nx).at(ny);
+    block & b=gmap[nx][ny];
     if(b.obj!=0)
       collideobj(nx,ny,name,b.obj);
     if(b.player.empty()){
@@ -230,7 +230,7 @@ class game{
       int x=it->second.x;
       int y=it->second.y;
     
-      block & ob=gmap.at(x).at(y);
+      block & ob=gmap[x][y];
       
       ob.player.clear();
     }catch(std::out_of_range &){
@@ -348,7 +348,7 @@ class game{
     for(int x=0;x<maxX;x++){
       for(int y=0;y<maxY;y++){
         try{
-          block & b=gmap.at(x).at(y);
+          block & b=gmap[x][y];
           if(b.obj!=0){
             snprintf(buf,256,"setobj %d %d %d",x,y,b.obj);
             block_buffer.push_back(buf);
@@ -363,12 +363,6 @@ class game{
     }
     block_buffer_locker.unlock();
   }
-  virtual void getmap(const string &name){
-    char buf[256];
-    snprintf(buf,256,"cremap %d %d",maxX,maxY);
-    string bs=buf;
-    senduser(name,bs);
-  }
 }Game;
 
 mutex Game_locker;
@@ -381,7 +375,7 @@ struct per_session_data {
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     begin:
     for(int i=0;i<15;i++){
-      name[i]=chs[(rand()&(sizeof(chs)-1))];
+      name[i]=chs[(rand()%(sizeof(chs)-1))];
     }
     name[15]='\0';
     
@@ -404,13 +398,17 @@ struct per_session_data {
     
     char buf[256];
     Game.block_buffer_locker.lock();
+    
+    snprintf(buf,256,"cremap %d %d",Game.maxX,Game.maxY);
+    senduser(name,buf);
     for(auto it:Game.block_buffer){
       snprintf(buf,256,"%s",it.c_str());
-      lws_write(
-        wsi_in,
-        (unsigned char*)buf,sizeof(buf),
-        LWS_WRITE_TEXT
-      );
+      senduser(name,buf);
+      //lws_write(
+      //  wsi_in,
+      //  (unsigned char*)buf,sizeof(buf),
+      //  LWS_WRITE_TEXT
+      //);
     }
     Game.block_buffer_locker.unlock();
   }
