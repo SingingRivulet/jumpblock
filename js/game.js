@@ -23,16 +23,24 @@ function jubk_send(msg){
   jubk_ws.send(msg);
 }
 
+function jubk_color(){
+  var res="#";
+  for(var i=0;i<6;i++){
+    res+=Math.floor(Math.random()*10);
+  }
+  return res;
+}
+
 function jubk_time(){
-  return new Date().time();
+  return new Date().getTime();
 }
 
 function jubk_addplayer(unm){
   jubk_player[unm]=[
-    0,0 //position
-    0,  //color
-    0,  //face to
-    jubk_time()
+    0,0,           //position
+    jubk_color(),  //color
+    0,             //face to
+    jubk_time()    //last update time
   ];
 }
 

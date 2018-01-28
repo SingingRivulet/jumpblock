@@ -46,9 +46,25 @@ function jdw_block_abs(x,y,c){
   var p=jdw_abs2scr(x,y);
   jdw_block_scr(p.x,p.y,c);
 }
-function jdw_player_abs(x,y,f,c,t){
+function jdw_player_abs(bx,by,f,c,t){
+  var x=bx;
+  var y=by;
+  
+  if(f==0){
+    x+=(t-1);
+  }else
+  if(f==1){
+    y+=(t-1);
+  }else
+  if(f==2){
+    x-=(t-1);
+  }else
+  if(f==3){
+    y-=(t-1);
+  }
+  
   var p=jdw_abs2scr(x,y);
-  jdw_player_scr(p.x,p.y,f,c);  
+  jdw_player_scr(p.x,p.y,f,c);
 }
 
 function jdw_all_block(){
@@ -82,7 +98,7 @@ function jdw_all_block(){
       if(player){
         try{
           var pt=jubk_player[player];
-          if(pl){
+          if(pt){
             jdw_player_abs(x,y,pt[3],pt[2],jubk_time()-pt[4]);
           }
         }catch(e){}
