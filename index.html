@@ -3,6 +3,16 @@
   <head>
     <title>jump block</title>
     <meta charset="utf-8"/>
+    <style>
+      .topline {
+         position:fixed;
+         top:0%;
+         width:100%;
+         z-index:888;
+         background:rgba(16,255,255,0.2);
+         text-align:left;
+      }
+    </style>
     <script>
       window.onerror=function(a,b,c,d,e,f){
         alert("error:"+a+b+c+d+e+f);
@@ -18,13 +28,17 @@
     </script>
   </head>
   <body>
-    [hp:<span id="jubk_hp">0</span>] 
-    [pw:<span id="jubk_pw">0</span>]
+    <div class="topline">
+      [hp:<span id="jubk_hp">0</span>] 
+      [pw:<span id="jubk_pw">0</span>]
+      <span style="float:right;">
+        by cgoxopx
+      </span>
+    </div>
     <br/>
-    <canvas id="mycanvas" hight="100%" width="100%">
+    <canvas id="mycanvas" hight="90%" width="100%">
       canvas is not supposed on your browser!
     </canvas>
     <br/>
-    by cgoxopx
   </body>
 </html>
