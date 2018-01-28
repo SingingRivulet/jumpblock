@@ -9,6 +9,9 @@ var jubk_me=[
   0       //pow
 ];
 
+function jubk_setname(n){
+  jubk_me[0]=n;
+}
 function jubk_setme(v1,v2,v3,v4){
   jubk_me[1]=v1;
   jubk_me[2]=v2;
@@ -28,7 +31,7 @@ function jubk_addplayer(unm){
   ];
 }
 
-jubk_face(unm,fc){
+function jubk_face(unm,fc){
   jubk_player[unm][3]=fc;
 }
 
@@ -99,7 +102,10 @@ function jubk_moveplayerto(unm,x,y){
   }catch(e){}
 }
 
+var jubk_lastf;
 function jubk_walk(f){
+  if(f==jubk_lastf)return;
+  jubk_lastf=f;
   jubk_send("walk "+f);
 }
 
@@ -150,6 +156,9 @@ function jubk_onmsg(m){
       parseInt(s[1]),parseInt(s[2]),
       s[3]
     );
+  }else
+  if(s[0]=="setname"){
+    jubk_setname(s[1]);
   }else
   if(s[0]=="exit"){
     

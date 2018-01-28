@@ -53,7 +53,9 @@ class game{
     if(f<0 || f>=4)return;
     auto it=players.find(name);
     if(it==players.end())return;
+    if(it->second.face==f)return;
     it->second.face=f;
+    onFaceto(name,f);
   }
   virtual void updateplayer(){
     for(auto it:players){
@@ -68,6 +70,12 @@ class game{
         if(it.second.hp<=100)
           it.second.hp++;
         it.second.pow+=5;
+        onGetUser(
+          it.first,
+          it.second.x,it.second.y,
+          it.second.hp,
+          it.second.pow
+        );
         switch(it.second.face){
           case 0:
           moveplayerto(
@@ -116,6 +124,7 @@ class game{
     int y=it->second.y;
     switch(i){
       case 1:
+        if(it->second.pow<20)break;
         it->second.pow-=20;
         put(i,x,y);
       break;
@@ -190,12 +199,59 @@ class game{
     int x=rand()%maxX;
     int y=rand()%maxY;
     moveplayerto(name,x,y);
+    onLogin(name);
   }
-  virtual void onLogin(const string &name){}
-  virtual void onFaceto(const string &name,int t){}
-  virtual void onPut(int i,int x,int y){}
-  virtual void onMove(int nx,int ny,const string &name){}
-  virtual void onQuit(const string &name){}
+  
+  virtual void onLogin(const string &name){
+    getmap(name);
+    
+    char buf[256];
+    
+    snprintf(buf,256,"setname %s",name.c_str());
+    string bs=buf;
+    senduser(name,bs);
+    
+    snprintf(buf,256,"addplayer %s",name.c_str());
+    bs=buf;
+    boardcast(bs);
+  }
+  virtual void onGetUser(const string &name,int a,int b,int c,int d){
+    char buf[256];
+    snprintf(buf,256,"setme %d %d %d %d",a,b,c,d);
+    string bs=buf;
+    senduser(name,bs);
+  }
+  virtual void onFaceto(const string &name,int t){
+    char buf[256];
+    snprintf(buf,256,"face %s %d",name.c_str(),t);
+    string bs=buf;
+    boardcast(bs);
+  }
+  
+  virtual void onPut(int i,int x,int y){
+    char buf[256];
+    snprintf(buf,256,"setobj %d %d %d",x,y,i);
+    string bs=buf;
+    boardcast(bs);
+  }
+  
+  virtual void onMove(int nx,int ny,const string &name){
+    char buf[256];
+    snprintf(buf,256,"move %s %d %d",name.c_str(),nx,ny);
+    string bs=buf;
+    boardcast(bs);
+  }
+  
+  virtual void onQuit(const string &name){
+    char buf[256];
+    snprintf(buf,256,"quit %s",name.c_str());
+    string bs=buf;
+    boardcast(bs);
+    
+    bs="exit";
+    senduser(name,bs);
+  }
+  
   virtual void collideplayer(int nx,int ny,const string &name){}
   virtual void collideobj(int nx,int ny,const string &name,int i){
     auto it=players.find(name);
@@ -212,5 +268,82 @@ class game{
       
     }
   }
+  virtual void onMsg(const string &name,const string & str){
+    istringstream iss(str);
+    string mode;
+    iss>>mode;
+    int f;
+    if(mode=="quit"){
+      quit(name);
+    }else
+    if(mode=="walk"){
+      iss>>f;
+      faceto(name,f);
+    }else
+    if(mode=="put"){
+      iss>>f;
+      put(f,name);
+    }
+  }
+  virtual void getmap(const string &name){
+    char buf[256];
+    snprintf(buf,256,"cremap %d %d",maxX,maxY);
+    string bs=buf;
+    senduser(name,bs);
+    
+    for(int x=0;x<gmap.size();x++){
+      for(int y=0;y<gmap[x].size();y++){
+        block & b=gmap[x][y];
+        if(b.obj!=0){
+          snprintf(buf,256,"setobj %d %d %d",x,y,b.obj);
+          string bs=buf;
+          senduser(name,bs);
+        }
+        if(!b.owner.empty()){
+          snprintf(buf,256,"setown %d %d %s",x,y,b.owner.c_str());
+          string bs=buf;
+          senduser(name,bs);
+        }
+      }
+    }
+  }
+  virtual void senduser(const string &name,const string & str){
+    
+  }
+  virtual void boardcast(const string & str){
+    
+  }
 };
+/*
+static int ws_service_callback(
+                         struct lws *wsi,
+                         enum lws_callback_reasons reason, void *user,
+                         void *in, size_t len)
+{
+
+    switch (reason) {
+
+        case LWS_CALLBACK_ESTABLISHED:
+            printf(KYEL"[Main Service] Connection established\n"RESET);
+            break;
+
+        // If receive a data from client
+        case LWS_CALLBACK_RECEIVE:
+            printf(KCYN_L"[Main Service] Server recvived:%s\n"RESET,(char *)in);
+
+            // echo back to client
+            websocket_write_back(wsi ,(char *)in, -1);
+
+            break;
+    case LWS_CALLBACK_CLOSED:
+            printf(KYEL"[Main Service] Client close.\n"RESET);
+        break;
+
+    default:
+            break;
+    }
+
+    return 0;
+}
+*/
 int main(){}
