@@ -94,6 +94,7 @@ class game{
     maxX=x;
     maxY=y;
     int ix,iy;
+    printf(KGRN"[Game] create map height=%d width=%d \n"RESET,x,y);
     gmap=new block*[maxX];
     for(ix=0;ix<maxX;ix++){
     gmap[ix]=new block[maxY];
@@ -260,8 +261,10 @@ class game{
   }
   virtual void login(const string &name){
     player & p=players[name];
-    int x=rand()%maxX;
-    int y=rand()%maxY;
+    int x=rand()%(this->maxX);
+    int y=rand()%(this->maxY);
+    p.hp=100;
+    p.pow=0;
     moveplayerto(name,x,y);
     onLogin(name);
   }
@@ -526,6 +529,7 @@ class Init{
   public:
   pthread_t mlthread;
   Init(){
+    Game.init(128,128);
     srand(time(0));
     if(pthread_create(&mlthread,NULL,mainloop,NULL)!=0)
       perror(KRED"[Main Loop] pthread_create"RESET);
