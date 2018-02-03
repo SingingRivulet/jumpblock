@@ -14,14 +14,16 @@
       }
     </style>
     <script>
-      window.onerror=function(a,b,c,d,e,f){
-        alert("error:"+a+b+c+d+e+f);
+      window.onerror=function(a,b,c){
+        alert("error:"+a+" "+b+" "+c);
       };
     </script>
+    <script src="js/config.js"></script>
     <script src="js/draw.js"></script>
     <script src="js/game.js"></script>
     <script>
       window.onload=function(){
+        jubk_conn(jubk_server);
         jdw_init();
         jdw_render();
       };

@@ -33,6 +33,8 @@ int main(void) {
     // no special options
     int opts = 0;
 
+    printf(KGRN"[Main] URL: ws://127.0.0.1:%d\n"RESET,port);
+
 
     //* register the signal SIGINT handler */
     struct sigaction act;
@@ -68,10 +70,6 @@ int main(void) {
 
     printf(KGRN"[Main] Websocket context create success.\n"RESET);
 
-    //mainloop
-    pthread_t newthread;
-    if(pthread_create(&newthread,NULL,mainloop,NULL)!=0)
-      perror("pthread_create");
     
     //websocket service
     while ( !destroy_flag ) {

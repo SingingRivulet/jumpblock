@@ -106,8 +106,11 @@ function jdw_all_block(){
       if(jubk_map_size.x<x)continue;
       if(jubk_map_size.y<y)continue;
       
-      var bk=jubk_map[x][y];
-      
+      try{
+        var bk=jubk_map[x][y];
+      }catch(e){
+        continue;
+      }
       var owner=bk[0];
       if(owner){
         try{
@@ -135,5 +138,9 @@ function jdw_render(){
   jdw_con.clearRect(0,0,jdw_elm.width,jdw_elm.height);
   jdw_carema_update();
   jdw_all_block();
-  window.requestAnimationFrame(jdw_render);
+  try{
+    window.requestAnimationFrame(jdw_render);
+  }catch(e){
+    setTimeout(jdw_render,100);
+  }
 }
