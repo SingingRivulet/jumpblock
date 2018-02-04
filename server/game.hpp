@@ -6,7 +6,6 @@
 #include <time.h>
 #include <stdlib.h>
 #include <unordered_map>
-#include <list>
 #include <string>
 #include <stdexcept>
 #include <mutex>
@@ -20,30 +19,8 @@
 #define KCYN_L "\033[1;36m"
 #define RESET "\033[0m"
 
-extern "C"{
-#include <libwebsockets.h>
-}
-
-using namespace std;
 
 int destroy_flag = 0;
-
-unordered_map<string,list<string> > msgs;
-mutex msgs_locker;
-void senduser(const string &name,const string & str){
-  //auto it=msgs.find(name);
-  //if(it==msgs.end())return;
-  msgs_locker.lock();
-  msgs[name].push_back(str);
-  msgs_locker.unlock();
-}
-void boardcast(const string & str){
-  msgs_locker.lock();
-  for(auto it:msgs){
-    it.second.push_back(str);
-  }
-  msgs_locker.unlock();
-}
 
 class game{
   public:
@@ -64,6 +41,7 @@ class game{
     int have;
     int face;
     int times;
+    int fd;
     player(){
       hp=100;
       pow=10;
@@ -74,9 +52,22 @@ class game{
       times=0;
     }
   };
-  unordered_map<string,player> players;
+  std::unordered_map<std::string,player> players;
+  void senduser(const std::string &name,const std::string & str){
+    auto it=players.find(name);
+    if(it==players.end())return;
+    auto ps=str.c_str();
+    send(it->second.fd,ps,strlen(ps),0);
+  }
+  void boardcast(const std::string & str){
+    auto ps=str.c_str();
+    auto len=strlen(ps);
+    for(auto it:players){
+      send(it.second.fd,ps,len,0);
+    }
+  }
   struct block{
-    string player,owner;
+    std::string player,owner;
     int obj;
   };
   block ** gmap;
@@ -105,7 +96,7 @@ class game{
       }
     }
   }
-  virtual void faceto(const string & name,int f){
+  virtual void faceto(const std::string & name,int f){
     if(f<0 || f>=4)return;
     auto it=players.find(name);
     if(it==players.end())return;
@@ -179,7 +170,7 @@ class game{
     ob.obj=i;
     onPut(i,nx,ny);
   }
-  virtual void put(int i,const string & name){
+  virtual void put(int i,const std::string & name){
     auto it=players.find(name);
     if(it==players.end())return;
     int x=it->second.x;
@@ -192,7 +183,7 @@ class game{
       break;
     }
   }
-  virtual void moveplayerto(const string & name,int nx,int ny){
+  virtual void moveplayerto(const std::string & name,int nx,int ny){
     if(nx>=maxX)return;
     if(ny>=maxY)return;
     if(nx<0)return;
@@ -241,7 +232,7 @@ class game{
     }
     onMove(nx,ny,name);
   }
-  virtual void quit(const string &name){
+  virtual void quit(const std::string &name){
     auto it=players.find(name);
     if(it==players.end())return;
     try{
@@ -259,37 +250,38 @@ class game{
     players.erase(it);
     onQuit(name);
   }
-  virtual void login(const string &name){
+  virtual void login(const std::string &name,int fd){
     player & p=players[name];
     int x=rand()%(this->maxX);
     int y=rand()%(this->maxY);
     p.hp=100;
     p.pow=0;
+    p.fd=fd;
     moveplayerto(name,x,y);
     onLogin(name);
   }
   
-  virtual void onLogin(const string &name){
+  virtual void onLogin(const std::string &name){
     char buf[256];
     
     snprintf(buf,256,"setname %s",name.c_str());
-    string bs=buf;
+    std::string bs=buf;
     senduser(name,bs);
     
     snprintf(buf,256,"addplayer %s",name.c_str());
     bs=buf;
     boardcast(bs);
   }
-  virtual void onGetUser(const string &name,int a,int b,int c,int d){
+  virtual void onGetUser(const std::string &name,int a,int b,int c,int d){
     char buf[256];
     snprintf(buf,256,"setme %d %d %d %d",a,b,c,d);
-    string bs=buf;
+    std::string bs=buf;
     senduser(name,bs);
   }
-  virtual void onFaceto(const string &name,int t){
+  virtual void onFaceto(const std::string &name,int t){
     char buf[256];
     snprintf(buf,256,"face %s %d",name.c_str(),t);
-    string bs=buf;
+    std::string bs=buf;
     boardcast(bs);
   }
   
@@ -299,29 +291,29 @@ class game{
       snprintf(buf,256,"pick %d %d",x,y);
     else
       snprintf(buf,256,"setobj %d %d %d",x,y,i);
-    string bs=buf;
+    std::string bs=buf;
     boardcast(bs);
   }
   
-  virtual void onMove(int nx,int ny,const string &name){
+  virtual void onMove(int nx,int ny,const std::string &name){
     char buf[256];
     snprintf(buf,256,"move %s %d %d",name.c_str(),nx,ny);
-    string bs=buf;
+    std::string bs=buf;
     boardcast(bs);
   }
   
-  virtual void onQuit(const string &name){
+  virtual void onQuit(const std::string &name){
     char buf[256];
     snprintf(buf,256,"quit %s",name.c_str());
-    string bs=buf;
+    std::string bs=buf;
     boardcast(bs);
     
     bs="exit";
     senduser(name,bs);
   }
   
-  virtual void collideplayer(int nx,int ny,const string &name){}
-  virtual void collideobj(int nx,int ny,const string &name,int i){
+  virtual void collideplayer(int nx,int ny,const std::string &name){}
+  virtual void collideobj(int nx,int ny,const std::string &name,int i){
     auto it=players.find(name);
     if(it==players.end())return;
     try{
@@ -336,9 +328,9 @@ class game{
       
     }
   }
-  virtual void onMsg(const string &name,const string & str){
-    istringstream iss(str);
-    string mode;
+  virtual void onMsg(const std::string &name,const std::string & str){
+    std::istringstream iss(str);
+    std::string mode;
     iss>>mode;
     int f;
     if(mode=="quit"){
@@ -353,9 +345,9 @@ class game{
       put(f,name);
     }
   }
-  list<string> block_buffer;
+  std::list<std::string> block_buffer;
   int          block_buffer_times;
-  mutex        block_buffer_locker;
+  std::mutex        block_buffer_locker;
   virtual void getblock(){
     
     if(block_buffer_times==times)return;
@@ -385,7 +377,7 @@ class game{
   }
 }Game;
 
-mutex Game_locker;
+std::mutex Game_locker;
 
 struct per_session_data {
   char name[16];
@@ -407,32 +399,27 @@ struct per_session_data {
     }
     Game_locker.unlock();
   }
-  void init(struct lws *wsi_in){
+  void init(int fd){
     randname();
-    string n=name;
+    std::string n=name;
     char buf[256];
     
     Game_locker.lock();
-    Game.login(name);
+    Game.login(name,fd);
     Game.getblock();
     snprintf(buf,256,"cremap %d %d",Game.maxX,Game.maxY);
-    senduser(name,buf);
+    send(fd,buf,sizeof(buf),0);
     for(auto uit:Game.players){
-      string bs="addplayer ";
+      std::string bs="addplayer ";
       bs+=uit.first;
-      senduser(name,bs);
+      send(fd,bs.c_str(),bs.size(),0);
     }
     Game_locker.unlock();
     
     Game.block_buffer_locker.lock();
     for(auto it:Game.block_buffer){
       snprintf(buf,256,"%s",it.c_str());
-      senduser(name,buf);
-      //lws_write(
-      //  wsi_in,
-      //  (unsigned char*)buf,sizeof(buf),
-      //  LWS_WRITE_TEXT
-      //);
+      send(fd,buf,sizeof(buf),0);
     }
     Game.block_buffer_locker.unlock();
   }
@@ -448,83 +435,20 @@ struct per_session_data {
     
     buf[127]='\0';
     
-    string msg=buf,
-           n  =name;
+    std::string msg=buf,
+    n=name;
     
     Game_locker.lock();
     Game.onMsg(n,msg);
     Game_locker.unlock();
   }
-  void onWriteable(struct lws *wsi_in){
-    msgs_locker.lock();
-    auto it=msgs.find(name);
-    
-    if(it==msgs.end()){
-      msgs_locker.unlock();
-      return;
-    }
-    
-    for(auto itm : it->second){
-      auto str=itm.c_str();
-      char buf[256];
-      snprintf(buf,256,"%s",str);
-      lws_write(
-        wsi_in,
-        (unsigned char*)buf,sizeof(buf),
-        LWS_WRITE_TEXT
-      );
-    }
-    it->second.clear();
-    
-    msgs_locker.unlock();
-  }
   void quit(){
     Game_locker.lock();
     Game.quit(name);
     Game_locker.unlock();
-    
-    msgs_locker.lock();
-    msgs.erase(name);
-    msgs_locker.unlock();
   }
 };
 
-int service_callback(
-                         struct lws *wsi,
-                         enum lws_callback_reasons reason, void *user,
-                         void *in, size_t len){
-    
-    auto session=(per_session_data*)user;
-    
-    switch (reason) {
-
-        case LWS_CALLBACK_ESTABLISHED:
-          printf(KYEL"[Main Service] Connection established\n"RESET);
-          session->init(wsi);
-          lws_callback_on_writable(wsi);
-        break;
-        // If receive a data from client
-        case LWS_CALLBACK_RECEIVE:
-          session->onMessage(in,len);
-          lws_callback_on_writable(wsi);
-        break;
-        
-        //writeable
-        case LWS_CALLBACK_CLIENT_WRITEABLE:
-          session->onWriteable(wsi);
-          lws_callback_on_writable(wsi);
-        break;
-        
-        //close
-        case LWS_CALLBACK_CLOSED:
-          session->quit();
-        break;
-
-        default:
-        break;
-    }
-    return 0;
-}
 class Init{
   public:
   pthread_t mlthread;
