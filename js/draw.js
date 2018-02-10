@@ -84,7 +84,9 @@ function jdw_carema_update(){
     
   }catch(e){}
 }
-
+function jdw_obj_abs(x,y,obj){
+  var sposi;
+}
 function jdw_player_abs(bx,by,f,c,t){
   var pt=jdw_getposi_time(bx,by,f,t);
   var p=jdw_abs2scr(pt.x,pt.y);
@@ -128,6 +130,12 @@ function jdw_all_block(){
           if(pt){
             jdw_player_abs(x,y,pt[3],pt[2],jubk_time()-pt[4]);
           }
+        }catch(e){}
+      }
+      var obj=bk[1];
+      if(obj!=0){
+        try{
+          jdw_obj_abs(x,y,obj);
         }catch(e){}
       }
     }

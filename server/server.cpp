@@ -230,7 +230,7 @@
 int main(){
   signal(SIGPIPE,[](int){});
   signal(2,[](int){
-    printf("\n"KGRN"[Main] Quit \n"RESET);
+    printf("\n" KGRN "[Main] Quit \n" RESET);
     destroy_flag=1;
     sleep(1);
     M.stop();

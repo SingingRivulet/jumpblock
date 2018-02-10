@@ -85,7 +85,7 @@ class game{
     maxX=x;
     maxY=y;
     int ix,iy;
-    printf(KGRN"[Game] create map height=%d width=%d \n"RESET,x,y);
+    printf(KGRN "[Game] create map height=%d width=%d \n" RESET,x,y);
     gmap=new block*[maxX];
     for(ix=0;ix<maxX;ix++){
     gmap[ix]=new block[maxY];
@@ -124,7 +124,7 @@ class game{
           it.second.hp,
           it.second.pow
         );
-        printf(KGRN"[Game]player:%s (%d,%d) \n"RESET,
+        printf(KGRN "[Game]player:%s (%d,%d) \n" RESET,
           it.first.c_str(),
           it.second.x,it.second.y
         );
@@ -264,23 +264,23 @@ class game{
   virtual void onLogin(const std::string &name){
     char buf[256];
     
-    snprintf(buf,256,"setname %s",name.c_str());
+    snprintf(buf,256,"setname %s \n",name.c_str());
     std::string bs=buf;
     senduser(name,bs);
     
-    snprintf(buf,256,"addplayer %s",name.c_str());
+    snprintf(buf,256,"addplayer %s \n",name.c_str());
     bs=buf;
     boardcast(bs);
   }
   virtual void onGetUser(const std::string &name,int a,int b,int c,int d){
     char buf[256];
-    snprintf(buf,256,"setme %d %d %d %d",a,b,c,d);
+    snprintf(buf,256,"setme %d %d %d %d \n",a,b,c,d);
     std::string bs=buf;
     senduser(name,bs);
   }
   virtual void onFaceto(const std::string &name,int t){
     char buf[256];
-    snprintf(buf,256,"face %s %d",name.c_str(),t);
+    snprintf(buf,256,"face %s %d \n",name.c_str(),t);
     std::string bs=buf;
     boardcast(bs);
   }
@@ -288,27 +288,27 @@ class game{
   virtual void onPut(int i,int x,int y){
     char buf[256];
     if(i==0)
-      snprintf(buf,256,"pick %d %d",x,y);
+      snprintf(buf,256,"pick %d %d \n",x,y);
     else
-      snprintf(buf,256,"setobj %d %d %d",x,y,i);
+      snprintf(buf,256,"setobj %d %d %d \n",x,y,i);
     std::string bs=buf;
     boardcast(bs);
   }
   
   virtual void onMove(int nx,int ny,const std::string &name){
     char buf[256];
-    snprintf(buf,256,"move %s %d %d",name.c_str(),nx,ny);
+    snprintf(buf,256,"move %s %d %d \n",name.c_str(),nx,ny);
     std::string bs=buf;
     boardcast(bs);
   }
   
   virtual void onQuit(const std::string &name){
     char buf[256];
-    snprintf(buf,256,"quit %s",name.c_str());
+    snprintf(buf,256,"quit %s \n",name.c_str());
     std::string bs=buf;
     boardcast(bs);
     
-    bs="exit";
+    bs="exit \n";
     senduser(name,bs);
   }
   
@@ -362,11 +362,13 @@ class game{
         try{
           block & b=gmap[x][y];
           if(b.obj!=0){
-            snprintf(buf,256,"setobj %d %d %d",x,y,b.obj);
+            bzero(buf,256);
+            snprintf(buf,256,"setobj %d %d %d \n",x,y,b.obj);
             block_buffer.push_back(buf);
           }
           if(!b.owner.empty()){
-            snprintf(buf,256,"setown %d %d %s",x,y,b.owner.c_str());
+            bzero(buf,256);
+            snprintf(buf,256,"setown %d %d %s \n",x,y,b.owner.c_str());
             block_buffer.push_back(buf);
           }
         }catch(std::out_of_range &){
@@ -407,11 +409,12 @@ struct per_session_data {
     Game_locker.lock();
     Game.login(name,fd);
     Game.getblock();
-    snprintf(buf,256,"cremap %d %d",Game.maxX,Game.maxY);
-    send(fd,buf,sizeof(buf),0);
+    snprintf(buf,256,"cremap %d %d \n",Game.maxX,Game.maxY);
+    send(fd,buf,strlen(buf),0);
     for(auto uit:Game.players){
       std::string bs="addplayer ";
       bs+=uit.first;
+      bs+=" \n";
       send(fd,bs.c_str(),bs.size(),0);
     }
     Game_locker.unlock();
@@ -419,7 +422,7 @@ struct per_session_data {
     Game.block_buffer_locker.lock();
     for(auto it:Game.block_buffer){
       snprintf(buf,256,"%s",it.c_str());
-      send(fd,buf,sizeof(buf),0);
+      send(fd,buf,strlen(buf),0);
     }
     Game.block_buffer_locker.unlock();
   }
@@ -456,10 +459,10 @@ class Init{
     Game.init(128,128);
     srand(time(0));
     if(pthread_create(&mlthread,NULL,mainloop,NULL)!=0)
-      perror(KRED"[Main Loop] pthread_create"RESET);
+      perror(KRED "[Main Loop] pthread_create" RESET);
   }
   static void * mainloop(void*){
-    printf(KGRN"[Main Loop] Game start success \n"RESET);
+    printf(KGRN "[Main Loop] Game start success \n" RESET);
     while( !destroy_flag){
     
       Game_locker.lock();

@@ -162,7 +162,7 @@ function jubk_put(i){
 }
 
 function jubk_onmsg(m){
-  
+  //alert(m);
   var s=m.split(" ");
   
   if(s[0]=="addplayer"){
