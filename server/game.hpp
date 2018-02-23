@@ -197,7 +197,7 @@ class game{
     if(x>=maxX)return;
     if(y>=maxY)return;
     
-    if(x>0 && y>0){
+    if(x>=0 && y>=0){
       block & ob=gmap[x][y];
       ob.player.clear();
     }
