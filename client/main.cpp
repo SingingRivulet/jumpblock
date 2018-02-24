@@ -4,11 +4,47 @@
 #include <math.h>
 #include <string.h>
 #include <string>
+#include <sstream>
+#ifdef _WIN32
+	#include <winsock2.h>
+	#include <time.h>
+#else
+	#include <sys/time.h>
+#endif
 using namespace std;
-struct vec{int x;int y;};
-int gettm(){
-  
+struct vec{
+  int x;
+  int y;
+};
+struct Color{
+  int c;
+};
+unsigned long long gettm(){
+  #ifdef _WIN32
+  struct timeval tv;
+  time_t clock;
+		struct tm tm;
+		SYSTEMTIME wtm;
+
+		GetLocalTime(&wtm);
+		tm.tm_year = wtm.wYear - 1900;
+		tm.tm_mon = wtm.wMonth - 1;
+		tm.tm_mday = wtm.wDay;
+		tm.tm_hour = wtm.wHour;
+		tm.tm_min = wtm.wMinute;
+		tm.tm_sec = wtm.wSecond;
+		tm.tm_isdst = -1;
+		clock = mktime(&tm);
+		tv.tv_sec = clock;
+		tv.tv_usec = wtm.wMilliseconds * 1000;
+		return ((unsigned long long)tv.tv_sec * 1000 + (unsigned long long)tv.tv_usec / 1000);
+#else
+        struct timeval tv;
+        gettimeofday(&tv,NULL);
+        return ((unsigned long long)tv.tv_sec * 1000 + (unsigned long long)tv.tv_usec / 1000);
+#endif
 }
+
 namespace game{
   vec map_size;
   class Me{
@@ -20,10 +56,10 @@ namespace game{
   
   class Player{
     public:
-    vec position; //position
-    //int color;  //color
-    int faceto;   //face to
-    int tm;       //last update time
+    vec position;          //position
+    Color color;           //color
+    int faceto;            //face to
+    unsigned long long tm; //last update time
     void init(){
       position.x=0;
       position.y=0;
@@ -38,7 +74,7 @@ namespace game{
     int obj;
   };
   
-  block ** gmap;
+  block ** gmap=NULL;
   
   void destroy(){
     if(gmap){
@@ -48,6 +84,7 @@ namespace game{
     }
   }
   void init(int x,int y){
+  	 if(gmap)return;
     int ix,iy;
     gmap=new block*[x];
     for(ix=0;ix<x;ix++){
@@ -68,7 +105,7 @@ namespace game{
   
   inline int set_pw(int v){}
   
-  inline void jubk_setme(int v1,int v2,int v3,int v4){
+  inline void setme(int v1,int v2,int v3,int v4){
     me.position.x=v1;
     me.position.y=v2;
     set_hp(v3);
@@ -158,7 +195,7 @@ namespace game{
   }
   
   int jubk_lastf;
-  void walk(int f){
+  inline void walk(int f){
     if(f==jubk_lastf)return;
     jubk_lastf=f;
     char buf[64];
@@ -166,9 +203,98 @@ namespace game{
     send(buf);
   }
   
-  void jubk_put(int i){
+  inline void jubk_put(int i){
     char buf[64];
     snprintf(buf,64,"put %d \n",i);
     send(buf);
   }
+  
+  void onmsg(const string & m){
+    istringstream iss(m);
+    string method,name;
+    int i1,i2,i3,i4;
+    iss>>method;
+    
+    if(method=="addplayer"){
+    	iss>>name;
+      addplayer(name);
+    }
+    if(method=="cremap"){
+    	iss>>i1;
+    	iss>>i2;
+      createmap(
+        i1,i2
+      );
+    }else
+    if(method=="quit"){
+    	iss>>name;
+      quitplayer(name);
+    }else
+    if(method=="move"){
+    	iss>>name;
+    	iss>>i1;
+    	iss>>i2;
+      moveplayerto(
+        name,
+        i1,i2
+      );
+    }else
+    if(method=="face"){
+    	iss>>name;
+    	iss>>i1;
+      face(name,i1);
+    }else
+    if(method=="setme"){
+    	iss>>i1;
+    	iss>>i2;
+    	iss>>i3;
+    	iss>>i4;
+      setme(
+        i1,i2,i3,i4
+      );
+    }else
+    if(method=="pick"){
+    	iss>>i1;
+    	iss>>i2;
+      pick(
+        i1,i2
+      );
+    }else
+    if(method=="setobj"){
+    	iss>>i1;
+    	iss>>i2;
+    	iss>>i3;
+      setmapobj(
+        i1,i2,i3
+      );
+    }else
+    if(method=="setown"){
+    	iss>>i1;
+    	iss>>i2;
+    	iss>>name;
+      setmapown(
+        i1,i2,name
+      );
+    }else
+    if(method=="setname"){
+    	iss>>name;
+      setname(name);
+    }else
+    if(method=="exit"){
+      exit(0);
+    }
+  }
+}
+namespace draw{
+  vec camera;
+  void init(){}
+  inline void block_scr(int x,int y,Color c){}
+  inline void block_abs(int x,int y,Color c){}
+  inline void obj_abs(int x,int y,int i){}
+  inline void player_scr(int x,int y,int f,Color c){}
+  inline void player_abs(int x,int y,int f,Color c){}
+  inline void carema_update(){}
+  
+  void all_block(){}
+  void render(){}
 }
