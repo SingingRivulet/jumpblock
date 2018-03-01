@@ -1,3 +1,4 @@
+#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unordered_map>
@@ -5,13 +6,22 @@
 #include <string.h>
 #include <string>
 #include <sstream>
-#ifdef _WIN32
-	#include <winsock2.h>
-	#include <time.h>
-#else
-	#include <sys/time.h>
-#endif
+#include <ctype.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <sys/file.h>
+#include <ctype.h>
+#include <strings.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <SDL2/SDL.h>
+
 using namespace std;
+int connfd;
 struct vec{
   int x;
   int y;
@@ -20,32 +30,13 @@ struct Color{
   int c;
 };
 unsigned long long gettm(){
-  #ifdef _WIN32
   struct timeval tv;
-  time_t clock;
-		struct tm tm;
-		SYSTEMTIME wtm;
-
-		GetLocalTime(&wtm);
-		tm.tm_year = wtm.wYear - 1900;
-		tm.tm_mon = wtm.wMonth - 1;
-		tm.tm_mday = wtm.wDay;
-		tm.tm_hour = wtm.wHour;
-		tm.tm_min = wtm.wMinute;
-		tm.tm_sec = wtm.wSecond;
-		tm.tm_isdst = -1;
-		clock = mktime(&tm);
-		tv.tv_sec = clock;
-		tv.tv_usec = wtm.wMilliseconds * 1000;
-		return ((unsigned long long)tv.tv_sec * 1000 + (unsigned long long)tv.tv_usec / 1000);
-#else
-        struct timeval tv;
-        gettimeofday(&tv,NULL);
-        return ((unsigned long long)tv.tv_sec * 1000 + (unsigned long long)tv.tv_usec / 1000);
-#endif
+  gettimeofday(&tv,NULL);
+  return ((unsigned long long)tv.tv_sec * 1000 + (unsigned long long)tv.tv_usec / 1000);
 }
 
 namespace game{
+  int hp,pw;
   vec map_size;
   class Me{
     public:
@@ -101,9 +92,13 @@ namespace game{
     me.name=n;
   }
   
-  inline int set_hp(int v){}
+  inline int set_hp(int v){
+    hp=v;
+  }
   
-  inline int set_pw(int v){}
+  inline int set_pw(int v){
+  	 pw=v;
+  }
   
   inline void setme(int v1,int v2,int v3,int v4){
     me.position.x=v1;
@@ -113,7 +108,10 @@ namespace game{
   }
   
   inline void send(const string & msg){
-    
+    const char * buf=msg.c_str();
+    ::send(connfd,buf,strlen(buf),0);
+    char end='\n';
+    ::send(connfd,&end,sizeof(end),0);
   }
   
   inline void addplayer(const string & unm){
@@ -199,13 +197,13 @@ namespace game{
     if(f==jubk_lastf)return;
     jubk_lastf=f;
     char buf[64];
-    snprintf(buf,64,"walk %d \n",f);
+    snprintf(buf,64,"walk %d",f);
     send(buf);
   }
   
   inline void jubk_put(int i){
     char buf[64];
-    snprintf(buf,64,"put %d \n",i);
+    snprintf(buf,64,"put %d",i);
     send(buf);
   }
   
@@ -286,8 +284,34 @@ namespace game{
   }
 }
 namespace draw{
+  SDL_Window *Window = NULL;
+  SDL_Surface *WindowScreen = NULL;
+  SDL_Renderer *renderer = NULL;
+  vector<SDL_Texture*> textures;
+  
+  void loadTexture(const char * path){
+    SDL_Surface *bitmapSurface = NULL;
+    SDL_Texture *bitmapTex = NULL;
+    bitmapSurface = SDL_LoadBMP(path);
+    bitmapTex = SDL_CreateTextureFromSurface(renderer, bitmapSurface);
+    SDL_FreeSurface(bitmapSurface);
+    textures.push_back(bitmapTex);
+  }
+  
   vec camera;
-  void init(){}
+  void init(){
+    renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED);
+  }
+  
+  void draw_texture(int id,int x,int y){
+    SDL_Rect sr,dr;
+    sr.x=x;
+    sr.y=y;
+    sr.w=10;
+    sr.h=10;
+    SDL_RenderCopy(render,textures[i],&sr,&dr);
+  }
+  
   inline void block_scr(int x,int y,Color c){}
   inline void block_abs(int x,int y,Color c){}
   inline void obj_abs(int x,int y,int i){}
@@ -295,4 +319,18 @@ namespace draw{
   inline void player_abs(int x,int y,int f,Color c){}
   inline void carema_update(){}
   
+  void all_block(){}
+  void render(){
+    SDL_RenderClear(renderer);
+    
+    SDL_RenderPresent(renderer);
+  }
+}
+int main(){
+  SDL_Init(SDL_INIT_VIDEO);
+  draw::Window = SDL_CreateWindow("jump block", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 500, 500, SDL_WINDOW_SHOWN);
+  if (draw::Window == NULL){
+    return 1;
+  }
+  draw::init();
 }
