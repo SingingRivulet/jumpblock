@@ -20,15 +20,26 @@
 #include <sys/time.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
-
+#include <thread>
+#include <mutex>
+#include <atomic>
 using namespace std;
 int connfd;
-bool gameover=false;
+atomic<bool> gameover;
 struct vec{
   int x;
   int y;
 };
-typedef Uint32 Color;
+struct Color{
+  Uint8 r,g,b;
+  Color()=default;
+  Color(const Color&)=default;
+  Color operator=(const Color & in){
+	  r=in.r;
+	  g=in.g;
+	  b=in.b;
+  }
+};
 unsigned long long gettm(){
   struct timeval tv;
   gettimeofday(&tv,NULL);
@@ -42,6 +53,7 @@ namespace draw{
 }
 
 namespace game{
+  mutex locker;
   int hp,pw;
   vec map_size;
   class Me{
@@ -62,7 +74,9 @@ namespace game{
       position.y=0;
       faceto=0;
       tm=gettm();
-	  color = SDL_MapRGB(draw::WindowScreen->format, (rand()%256), (rand()%256), (rand()%256));
+	  color.r=((rand()%128)+128);
+	  color.g=((rand()%128)+128);
+	  color.b=((rand()%128)+128);
     }
 	void settm(){
       tm=gettm();
@@ -295,6 +309,7 @@ namespace game{
     }
   }
 }
+
 namespace draw{
   struct{
     double x,y;
@@ -347,31 +362,27 @@ namespace draw{
     if (Window == NULL){
       exit(1);
     }
+	WindowScreen = SDL_GetWindowSurface(Window);
     renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED);
   }
 
   void draw_texture(int id,int x,int y){
-    if(id>textures.size())return;
-	SDL_Rect sr,dr;
-    if(x<0 || y<0){
-	  int tx=x+10,
-	      ty=y+10;
-	  if(tx<0 || ty<0)return;
-	  sr.x=0;
-      sr.y=0;
-	  sr.w=tx;
-      sr.h=ty;
-	}else{
-      sr.x=x;
-      sr.y=y;
+    SDL_Rect sr,dr;
+      sr.x=x-5;
+      sr.y=y-5;
 	  sr.w=10;
       sr.h=10;
-    }
     SDL_RenderCopy(renderer,textures[id],&sr,&dr);
   }
 
   inline void block_scr(int x,int y,Color c){
-    
+    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, 255);
+    SDL_Rect sr;
+      sr.x=x-5;
+      sr.y=y-5;
+	  sr.w=10;
+      sr.h=10;
+    SDL_RenderFillRect(renderer,&sr);
   }
   inline void block_abs(int x,int y,Color c){
     vec p;
@@ -432,7 +443,17 @@ namespace draw{
           //  block_abs(x,y,pl->second.color);
           //}
         //}
+      }
+    }
+    for(int x=bx;x<ex;x++){
+      for(int y=by;y<ey;y++){
+        if(x<0)continue;
+        if(y<0)continue;
+        if(game::map_size.x<=x)continue;
+        if(game::map_size.y<=y)continue;
       
+        game::block & bk=game::gmap[x][y];
+	    
         string & player=bk.player;
         if(!player.empty()){
           auto pt=game::player.find(player);
@@ -460,18 +481,72 @@ namespace draw{
     SDL_RenderPresent(renderer);
   }
 }
+void mainloop(){  
+  char addr[]="127.0.0.1";
+  short port=5000;
+  struct sockaddr_in address;
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = inet_addr(addr);
+  address.sin_port = htons(port);
+  
+  game::locker.lock();
+  connfd = socket(AF_INET, SOCK_STREAM, 0);
+  if(connect(connfd, (struct sockaddr *)&address, sizeof(address))==-1)gameover=true;
+  game::locker.unlock();
+  
+  char str[256];
+  int ptr=0;
+  char buf;
+  string tmp;
+  while(!gameover){
+    if(read(connfd,&buf,1)>0){
+      str[ptr]=buf;
+	  ++ptr;
+      if(buf=='\n' || buf=='\0' || ptr>=255){
+		  str[ptr]='\0';
+		  game::locker.lock();
+		  tmp=str;
+		  game::onmsg(tmp);
+		  game::locker.unlock();
+		  ptr=0;
+	  }
+    }
+  }
+  
+  close(connfd);
+}
 int main(){
   SDL_Event e;
   draw::init();
+  gameover=false;
+  thread ml(mainloop);
+  ml.detach();
   while(!gameover){
+    game::locker.lock();
     draw::render();
 	while( SDL_PollEvent( &e ) != 0 ){
       if( e.type == SDL_QUIT ){
         gameover=true;
       }
+	  if(e.type == SDL_KEYDOWN ){
+        switch(e.key.keysym.sym){
+          case SDLK_UP:
+		    game::walk(0);
+		  break;
+		  case SDLK_DOWN:
+		    game::walk(2);
+		  break;
+		  case SDLK_LEFT:
+		    game::walk(3);
+		  break;
+		  case SDLK_RIGHT:
+		    game::walk(1);
+		  break;
+        }
+      }
     }
+	game::locker.unlock();
   }
-  SDL_FreeSurface(draw::WindowScreen);
   SDL_DestroyWindow(draw::Window);
   SDL_DestroyRenderer(draw::renderer);
   for(auto it:draw::textures){
