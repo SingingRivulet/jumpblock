@@ -14,8 +14,7 @@
 #include <unistd.h>
 #include <sys/file.h>
 #include <ctype.h>
-#include <strings.h>
-#include <string.h>
+#include <time.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <SDL2/SDL.h>
@@ -40,10 +39,10 @@ struct Color{
 	  b=in.b;
   }
 };
-unsigned long long gettm(){
+double gettm(){
   struct timeval tv;
   gettimeofday(&tv,NULL);
-  return ((unsigned long long)tv.tv_sec * 1000 + (unsigned long long)tv.tv_usec / 1000);
+  return (((double)tv.tv_sec) + ((double)tv.tv_usec / 1000000.0));
 }
 namespace draw{
   SDL_Window *Window = NULL;
@@ -68,15 +67,15 @@ namespace game{
     vec position;          //position
     Color color;           //color
     int faceto;            //face to
-    unsigned long long tm; //last update time
+    double tm; //last update time
     void init(){
       position.x=0;
       position.y=0;
       faceto=0;
       tm=gettm();
-	  color.r=((rand()%128)+128);
-	  color.g=((rand()%128)+128);
-	  color.b=((rand()%128)+128);
+	  color.r=(rand()%256);
+	  color.g=(rand()%256);
+	  color.b=(rand()%256);
     }
 	void settm(){
       tm=gettm();
@@ -345,9 +344,11 @@ namespace draw{
     SDL_Surface *bitmapSurface = NULL;
     SDL_Texture *bitmapTex = NULL;
     bitmapSurface = SDL_LoadBMP(path);
+	if(bitmapSurface==NULL)return;
 	SDL_SetColorKey(bitmapSurface,true,SDL_MapRGB(bitmapSurface->format,255,255,255));
     bitmapTex = SDL_CreateTextureFromSurface(renderer, bitmapSurface);
-    SDL_FreeSurface(bitmapSurface);
+    if(bitmapTex==NULL)return;
+	SDL_FreeSurface(bitmapSurface);
     textures.push_back(bitmapTex);
   }
 
@@ -364,12 +365,16 @@ namespace draw{
     }
 	WindowScreen = SDL_GetWindowSurface(Window);
     renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED);
+	loadTexture("img/up.bmp");
+	loadTexture("img/right.bmp");
+	loadTexture("img/down.bmp");
+	loadTexture("img/left.bmp");
   }
 
   void draw_texture(int id,int x,int y){
     SDL_Rect sr,dr;
-      sr.x=x-5;
-      sr.y=y-5;
+      sr.x=(x-5);
+      sr.y=(y-5);
 	  sr.w=10;
       sr.h=10;
     SDL_RenderCopy(renderer,textures[id],&sr,&dr);
@@ -377,9 +382,10 @@ namespace draw{
 
   inline void block_scr(int x,int y,Color c){
     SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, 255);
-    SDL_Rect sr;
-      sr.x=x-5;
-      sr.y=y-5;
+    //printf("block_src:(%d,%d) %d %d %d\n",x,y,c.r, c.g, c.b);
+	SDL_Rect sr;
+      sr.x=(x-5);
+      sr.y=(y-5);
 	  sr.w=10;
       sr.h=10;
     SDL_RenderFillRect(renderer,&sr);
@@ -409,16 +415,24 @@ namespace draw{
   }
   inline void carema_update(){
     auto pl=game::player[game::me.name];
-	double t=(pl.tm)/1000;
+	auto systime=gettm();
+	double t=((double)(pl.tm));
     double pt[2];
-	getposi_time(pl.position.x,pl.position.y,pl.faceto,t,pt);
+	getposi_time(game::me.position.x,game::me.position.y,pl.faceto,systime-t,pt);
     
     camera.x=pt[0];
     camera.y=pt[1];
+	//camera.x=game::me.position.x;
+    //camera.y=game::me.position.y;
+	//printf("player:(%d,%d) camera:(%f,%f)\n",game::me.position.x,game::me.position.y,camera.x,camera.y);
   }
 
   void all_block(){
-    int cx=floor(camera.x);
+    Color defcol;
+	defcol.r=0;
+	defcol.g=0;
+	defcol.b=0;
+	int cx=floor(camera.x);
     int cy=floor(camera.y);
 	int bx=cx-2;
     int by=cy-2;
@@ -436,13 +450,17 @@ namespace draw{
 	    
         string & owner=bk.owner;
         
-		block_abs(x,y,bk.color_cache);
-		//if(!owner.empty()){
-          //auto pl=game::player.find(owner);
-          //if(pl!=game::player.end()){
-          //  block_abs(x,y,pl->second.color);
-          //}
-        //}
+		//block_abs(x,y,bk.color_cache);
+		if(!owner.empty()){
+          auto pl=game::player.find(owner);
+          if(pl!=game::player.end()){
+            block_abs(x,y,pl->second.color);
+          }else{
+            block_abs(x,y,defcol);
+          }
+        }else{
+	      block_abs(x,y,defcol);
+	    }
       }
     }
     for(int x=bx;x<ex;x++){
@@ -461,7 +479,7 @@ namespace draw{
             player_abs(
               x,y,
 			  pt->second.faceto,pt->second.color,
-              (gettm()-pt->second.tm)/1000
+              (double)(gettm()-pt->second.tm)
             );
           }
         }
@@ -517,6 +535,7 @@ void mainloop(){
 }
 int main(){
   SDL_Event e;
+  srand(time(NULL));
   draw::init();
   gameover=false;
   thread ml(mainloop);
