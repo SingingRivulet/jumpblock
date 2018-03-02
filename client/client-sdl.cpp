@@ -168,24 +168,24 @@ namespace game{
   inline void setmapown(int x,int y,const string & o){
     if(x<0)return;
     if(y<0)return;
-    if(x>map_size.x)return;
-    if(y>map_size.y)return;
+    if(x>=map_size.x)return;
+    if(y>=map_size.y)return;
     gmap[x][y].owner=o;
   }
 
   inline void pick(int x,int y){
     if(x<0)return;
     if(y<0)return;
-    if(x>map_size.x)return;
-    if(y>map_size.y)return;
+    if(x>=map_size.x)return;
+    if(y>=map_size.y)return;
     gmap[x][y].obj=0;
   }
 
   inline void setmapobj(int x,int y,int o){
     if(x<0)return;
     if(y<0)return;
-    if(x>map_size.x)return;
-    if(y>map_size.y)return;
+    if(x>=map_size.x)return;
+    if(y>=map_size.y)return;
     gmap[x][y].obj=o;
   }
 
@@ -204,17 +204,17 @@ namespace game{
     if(y<map_size.y)
     if(x>=0 && y>=0){
       block & ob=gmap[x][y];
-      ob.player.clear();
+      ob.owner=ob.player;
+	  ob.player.clear();
     }
 
     it->second.position.x=x;
     it->second.position.y=y;
     it->second.tm=gettm();
-
-    block & obp=gmap[x][y];
-    obp.player=name;
-    obp.owner =name;
-	obp.color_cache=it->second.color;
+	
+    gmap[nx][ny].player=name;
+    gmap[nx][ny].owner =name;
+	gmap[nx][ny].color_cache=it->second.color;
   }
 
   int jubk_lastf;
@@ -315,10 +315,10 @@ namespace draw{
   }camera;
   
   inline void abs2scr(double x,double y,vec & res){
-    double tx=(camera.x-2);
-    double ty=(camera.y-2);
-    res.x=floor((x-tx)*10);
-    res.y=floor((y-ty)*10);
+    double tx=(camera.x-5);
+    double ty=(camera.y-5);
+    res.x=floor((x-tx)*5);
+    res.y=floor((y-ty)*5);
   }
   
   inline void getposi_time(double bx,double by,int f,double t,double * ret){
@@ -337,7 +337,11 @@ namespace draw{
     if(f==3){
       y-=(t-1);
     }
-    ret[0]=x;
+    if(x<=0)x=0;
+    if(y<=0)y=0;
+    if(x>=128)x=128;
+    if(y>=128)y=128;
+	ret[0]=x;
 	ret[1]=y;
   }
   void loadTexture(const char * path){
@@ -372,22 +376,22 @@ namespace draw{
   }
 
   void draw_texture(int id,int x,int y){
-    SDL_Rect sr,dr;
-      sr.x=(x-5);
-      sr.y=(y-5);
-	  sr.w=10;
-      sr.h=10;
+      if(id>=textures.size())return;
+	  SDL_Rect sr,dr;
+      sr.x=(x-5)*5+150;
+      sr.y=(y-5)*5+150;
+	  sr.w=50;
+      sr.h=50;
     SDL_RenderCopy(renderer,textures[id],&sr,&dr);
   }
 
   inline void block_scr(int x,int y,Color c){
     SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, 255);
-    //printf("block_src:(%d,%d) %d %d %d\n",x,y,c.r, c.g, c.b);
 	SDL_Rect sr;
-      sr.x=(x-5);
-      sr.y=(y-5);
-	  sr.w=10;
-      sr.h=10;
+      sr.x=(x-5)*5+150;
+      sr.y=(y-5)*5+150;
+	  sr.w=50;
+      sr.h=50;
     SDL_RenderFillRect(renderer,&sr);
   }
   inline void block_abs(int x,int y,Color c){
@@ -434,23 +438,24 @@ namespace draw{
 	defcol.b=0;
 	int cx=floor(camera.x);
     int cy=floor(camera.y);
-	int bx=cx-2;
-    int by=cy-2;
-    int ex=cx+2;
-    int ey=cy+2;
+	int bx=cx-10;
+    int by=cy-10;
+    int ex=cx+11;
+    int ey=cy+11;
     for(int x=bx;x<ex;x++){
       for(int y=by;y<ey;y++){
       
-        if(x<0)continue;
-        if(y<0)continue;
-        if(game::map_size.x<=x)continue;
-        if(game::map_size.y<=y)continue;
+        if(x<0)                {block_abs(x,y,defcol);continue;}
+        if(y<0)                {block_abs(x,y,defcol);continue;}
+        if(game::map_size.x<=x){block_abs(x,y,defcol);continue;}
+        if(game::map_size.y<=y){block_abs(x,y,defcol);continue;}
       
         game::block & bk=game::gmap[x][y];
 	    
         string & owner=bk.owner;
         
-		//block_abs(x,y,bk.color_cache);
+		block_abs(x,y,bk.color_cache);
+		/*
 		if(!owner.empty()){
           auto pl=game::player.find(owner);
           if(pl!=game::player.end()){
@@ -461,7 +466,8 @@ namespace draw{
         }else{
 	      block_abs(x,y,defcol);
 	    }
-      }
+        */
+	  }
     }
     for(int x=bx;x<ex;x++){
       for(int y=by;y<ey;y++){
@@ -550,16 +556,16 @@ int main(){
 	  if(e.type == SDL_KEYDOWN ){
         switch(e.key.keysym.sym){
           case SDLK_UP:
-		    game::walk(0);
-		  break;
-		  case SDLK_DOWN:
-		    game::walk(2);
-		  break;
-		  case SDLK_LEFT:
 		    game::walk(3);
 		  break;
-		  case SDLK_RIGHT:
+		  case SDLK_DOWN:
 		    game::walk(1);
+		  break;
+		  case SDLK_LEFT:
+		    game::walk(2);
+		  break;
+		  case SDLK_RIGHT:
+		    game::walk(0);
 		  break;
         }
       }
