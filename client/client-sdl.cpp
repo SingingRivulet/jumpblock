@@ -444,13 +444,64 @@ namespace draw{
     abs2scr(pt[0],pt[1],p);
     player_scr(p.x,p.y,f,c);
   }
-  inline void carema_update(){
+  
+  struct Camera{
+	  struct posi{
+		  double x,y;
+		  posi(){
+			  x=0;
+			  y=0;
+		  }
+	  }from,to;
+	  double tm,dt;
+	  int x,y;
+	  Camera(){
+		  x=-1;
+		  y=-1;
+	  }
+	  void update(int nx,int ny){
+		  if(nx==x && ny==y)return;
+		  if(x==-1 && y==-1){
+			  from.x=nx;
+			  from.y=ny;
+		  }else{
+			  double np[2];
+			  getCam(np);
+			  from.x=np[0];
+			  from.y=np[1];
+		  }
+		  tm=gettm();
+		  to.x=nx;
+		  to.y=ny;
+		  x=nx;
+		  y=ny;
+	  }
+	  void getCam(double * p){
+		  auto t=gettm();
+		  dt=t-tm;
+		  if(dt>1){
+			  p[0]=to.x;
+			  p[1]=to.y;
+		  }else{
+			  p[0]=from.x+((to.x-from.x)*dt);
+			  p[1]=from.y+((to.y-from.y)*dt);
+		  }
+	  }
+  }cam_p;
+  inline void camera_update(){
     auto pl=game::player[game::me.name];
-	auto systime=gettm();
-	double t=((double)(pl.tm));
+	//auto systime=gettm();
+	//double t=((double)(pl.tm));
     double pt[2];
-	getposi_time(game::me.position.x,game::me.position.y,pl.faceto,systime-t,pt);
+	//getposi_time(game::me.position.x,game::me.position.y,pl.faceto,systime-t,pt);
     
+	cam_p.update(game::me.position.x,game::me.position.y);
+	cam_p.getCam(pt);
+	//if(cam_p.dt>1 && cam_p.dt<2){
+	//	pt[0]=cam_p.from.x+((cam_p.to.x-cam_p.from.x)*cam_p.dt*0.5);
+	//	pt[1]=cam_p.from.y+((cam_p.to.y-cam_p.from.y)*cam_p.dt*0.5);
+	//}
+	
     camera.x=pt[0];
     camera.y=pt[1];
 	//camera.x=game::me.position.x;
@@ -529,7 +580,7 @@ namespace draw{
   void render(){
     SDL_RenderClear(renderer);
     
-    carema_update();
+    camera_update();
     all_block();
     draw_val();
 	
