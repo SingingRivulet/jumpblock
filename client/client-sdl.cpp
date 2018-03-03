@@ -381,6 +381,8 @@ namespace draw{
 	loadTexture("img/down.bmp");
 	loadTexture("img/left.bmp");
 	loadTexture("img/up.bmp");
+	loadTexture("img/bomb1.bmp");
+	loadTexture("img/bomb2.bmp");
   }
 
   void draw_texture(int id,int x,int y){
@@ -425,7 +427,7 @@ namespace draw{
     block_scr(p.x,p.y,c);
   }
   inline void obj_scr(int x,int y,int i){
-    draw_texture(i+4,x,y);
+    draw_texture(i+3,x,y);
   }
   inline void obj_abs(int x,int y,int i){
     vec p;
