@@ -156,6 +156,7 @@ namespace game{
     int y=posi.y;
     gmap[x][y].owner.clear();
     player.erase(unm);
+	if(unm==me.name)gameover=true;
   }
 
   inline void createmap(int x,int y){
@@ -225,7 +226,7 @@ namespace game{
     send(buf);
   }
 
-  inline void jubk_put(int i){
+  inline void put(int i){
     char buf[64];
     snprintf(buf,64,"put %d",i);
     send(buf);
@@ -371,10 +372,10 @@ namespace draw{
     }
 	WindowScreen = SDL_GetWindowSurface(Window);
     renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED);
-	loadTexture("img/up.bmp");
 	loadTexture("img/right.bmp");
 	loadTexture("img/down.bmp");
 	loadTexture("img/left.bmp");
+	loadTexture("img/up.bmp");
   }
 
   void draw_texture(int id,int x,int y){
@@ -394,6 +395,8 @@ namespace draw{
 	  sr.w=game::me.hp;
 	  sr.h=10;
 	  SDL_RenderFillRect(renderer,&sr);
+	  
+	  if(game::me.hp<0)gameover=true;
 	  
 	  SDL_SetRenderDrawColor(renderer, 0, 0, 255, 128);
 	  sr.x=10;
@@ -587,6 +590,12 @@ int main(){
 		  break;
 		  case SDLK_RIGHT:
 		    game::walk(0);
+		  break;
+		  case SDLK_1:
+		    game::put(1);
+		  break;
+		  case SDLK_2:
+		    game::put(2);
 		  break;
         }
       }

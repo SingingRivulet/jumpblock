@@ -33,7 +33,8 @@ class game{
   ~game(){
     destroy();
   }
-  struct player{
+  class player{
+    public:
     int hp;
     int pow;
     int x;
@@ -49,12 +50,6 @@ class game{
       have=0;
       face=0;
       times=0;
-    }
-    void updateval(){
-      if(this->hp<100) this->hp+=5;
-      if(this->pow<100)this->pow+=5;
-      printf("update %d %d\n",this->hp,this->pow);
-      
     }
   };
   std::unordered_map<std::string,player> players;
@@ -112,23 +107,18 @@ class game{
   virtual void updateplayer(){
     times++;
     for(auto it:players){
-      it.second.updateval();
-    }
-    for(auto it:players){
       try{
         it.second.times++;
-        if(it.second.times>10){
-          if(it.second.hp<0){
-            quit(it.first);
-            continue;
-          }
-        }
         onGetUser(
           it.first,
           it.second.x,it.second.y,
           it.second.hp,
           it.second.pow
         );
+        if(it.second.hp<0){
+          quit(it.first);
+          continue;
+        }
         //printf(KGRN "[Game]player:%s (%d,%d) \n" RESET,
         //  it.first.c_str(),
         //  it.second.x,it.second.y
@@ -186,6 +176,11 @@ class game{
         it->second.pow-=20;
         put(i,x,y);
       break;
+      case 2:
+        if(it->second.pow<20)break;
+        it->second.pow-=20;
+        put(i,x,y);
+      break;
     }
   }
   virtual void moveplayerto(const std::string & name,int nx,int ny){
@@ -214,6 +209,8 @@ class game{
       it->second.x=nx;
       it->second.y=ny;
       
+      if(it->second.hp<200) it->second.hp+=2;
+      if(it->second.pow<200)it->second.pow+=5;
       it->second.have++;
       if(!b.owner.empty())
         players[b.owner].have--;
@@ -329,17 +326,18 @@ class game{
   virtual void collideobj(int nx,int ny,const std::string &name,int i){
     auto it=players.find(name);
     if(it==players.end())return;
+    int ohp=it->second.hp;
     try{
+      //printf("%d %d ",it->second.hp,i);
       switch(i){
         case 1:
-        if(it->second.times>10)
-          it->second.hp-=20;
+          it->second.hp=ohp-20;
         break;
         case 2:
-        if(it->second.times>10)
-          it->second.hp-=40;
+          it->second.hp=ohp-40;
         break;
       }
+      //printf("%s %d\n",name.c_str(),it->second.hp);
       put(0,nx,ny);
     }catch(std::out_of_range &){
       
