@@ -66,7 +66,7 @@ namespace game{
     vec position;          //position
     Color color;           //color
     int faceto;            //face to
-    double tm; //last update time
+    double tm;             //last update time
     void init(int r,int g,int b){
       position.x=0;
       position.y=0;
@@ -217,20 +217,24 @@ namespace game{
 	gmap[nx][ny].color_cache=it->second.color;
   }
 
+  inline void put(int i){
+    char buf[64];
+    snprintf(buf,64,"put %d",i);
+    send(buf);
+  }
+  
   int jubk_lastf;
   inline void walk(int f){
-    if(f==jubk_lastf)return;
+    if(f==jubk_lastf){
+		put(2);
+		return;
+    }
     jubk_lastf=f;
     char buf[64];
     snprintf(buf,64,"walk %d",f);
     send(buf);
   }
 
-  inline void put(int i){
-    char buf[64];
-    snprintf(buf,64,"put %d",i);
-    send(buf);
-  }
 
   void onmsg(const string & m){
     istringstream iss(m);
@@ -570,6 +574,7 @@ int main(){
   gameover=false;
   thread ml(mainloop);
   ml.detach();
+  double x,y,dx,dy,adx,ady;
   while(!gameover){
     game::locker.lock();
     draw::render();
@@ -577,6 +582,34 @@ int main(){
       if( e.type == SDL_QUIT ){
         gameover=true;
       }
+	  if(e.type==SDL_FINGERDOWN){
+		x=e.tfinger.x;
+		y=e.tfinger.y;
+	  }
+	  if(e.type==SDL_FINGERUP){
+		  
+		  dx = e.tfinger.x-x;
+		  dy = e.tfinger.y-y;
+		  adx=fabs(dx);
+		  ady=fabs(dy);
+		  if(adx<0.2d && ady<0.2d){
+			  game::put(1);
+			  continue;
+		  }
+		  if(adx>ady){
+			  if(dx>0){
+				  game::walk(0);
+			  }else{
+				  game::walk(2);
+			  }
+		  }else{
+			  if(dy>0){
+				  game::walk(1);
+			  }else{
+				  game::walk(3);
+			  }
+		  }
+	  }
 	  if(e.type == SDL_KEYDOWN ){
         switch(e.key.keysym.sym){
           case SDLK_UP:
@@ -608,5 +641,6 @@ int main(){
     SDL_DestroyTexture(it);
   }
   SDL_Quit();
+  game::destroy();
   return 0;
 }
