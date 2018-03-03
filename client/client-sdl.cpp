@@ -22,6 +22,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include "config.h"
 using namespace std;
 int connfd;
 atomic<bool> gameover;
@@ -534,8 +535,8 @@ namespace draw{
   }
 }
 void mainloop(){  
-  char addr[]="127.0.0.1";
-  short port=5000;
+  char addr[]=ADDR;
+  short port=PORT;
   struct sockaddr_in address;
   address.sin_family = AF_INET;
   address.sin_addr.s_addr = inet_addr(addr);
