@@ -42,14 +42,19 @@ class game{
     int face;
     int times;
     int fd;
+    int r,g,b;
     player(){
-      hp=100;
-      pow=10;
       x=0;
       y=0;
       have=0;
       face=0;
       times=0;
+    }
+    void updateval(){
+      if(this->hp<100) this->hp+=5;
+      if(this->pow<100)this->pow+=5;
+      printf("update %d %d\n",this->hp,this->pow);
+      
     }
   };
   std::unordered_map<std::string,player> players;
@@ -107,6 +112,9 @@ class game{
   virtual void updateplayer(){
     times++;
     for(auto it:players){
+      it.second.updateval();
+    }
+    for(auto it:players){
       try{
         it.second.times++;
         if(it.second.times>10){
@@ -115,19 +123,16 @@ class game{
             continue;
           }
         }
-        if(it.second.hp<=100)
-          it.second.hp++;
-        it.second.pow+=5;
         onGetUser(
           it.first,
           it.second.x,it.second.y,
           it.second.hp,
           it.second.pow
         );
-        printf(KGRN "[Game]player:%s (%d,%d) \n" RESET,
-          it.first.c_str(),
-          it.second.x,it.second.y
-        );
+        //printf(KGRN "[Game]player:%s (%d,%d) \n" RESET,
+        //  it.first.c_str(),
+        //  it.second.x,it.second.y
+        //);
         switch(it.second.face){
           case 0:
           moveplayerto(
@@ -254,21 +259,29 @@ class game{
     player & p=players[name];
     int x=rand()%(this->maxX);
     int y=rand()%(this->maxY);
-    p.hp=100;
+    
+    //printf("login\n");
+
+    p.hp=50;
     p.pow=0;
     p.fd=fd;
-    moveplayerto(name,x,y);
-    onLogin(name);
+	
+	p.r=rand()%256;
+	p.g=rand()%256;
+	p.b=rand()%256;
+    
+	moveplayerto(name,x,y);
+    onLogin(name,p.r,p.g,p.b);
   }
   
-  virtual void onLogin(const std::string &name){
+  virtual void onLogin(const std::string &name,int r,int g,int b){
     char buf[256];
     
-    snprintf(buf,256,"setname %s \n",name.c_str());
+    snprintf(buf,256,"setname %s %d %d %d \n",name.c_str(),r,g,b);
     std::string bs=buf;
     senduser(name,bs);
     
-    snprintf(buf,256,"addplayer %s \n",name.c_str());
+    snprintf(buf,256,"addplayer %s %d %d %d \n",name.c_str(),r,g,b);
     bs=buf;
     boardcast(bs);
   }
@@ -321,6 +334,10 @@ class game{
         case 1:
         if(it->second.times>10)
           it->second.hp-=20;
+        break;
+        case 2:
+        if(it->second.times>10)
+          it->second.hp-=40;
         break;
       }
       put(0,nx,ny);
@@ -412,10 +429,11 @@ struct per_session_data {
     snprintf(buf,256,"cremap %d %d \n",Game.maxX,Game.maxY);
     send(fd,buf,strlen(buf),0);
     for(auto uit:Game.players){
-      std::string bs="addplayer ";
-      bs+=uit.first;
-      bs+=" \n";
-      send(fd,bs.c_str(),bs.size(),0);
+      //std::string bs="addplayer ";
+      //bs+=uit.first;
+      //bs+=" \n";
+      snprintf(buf,256,"addplayer %s %d %d %d \n",uit.first.c_str(),uit.second.r,uit.second.g,uit.second.b);
+	  send(fd,buf,strlen(buf),0);
     }
     Game_locker.unlock();
     

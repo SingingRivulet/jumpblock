@@ -53,7 +53,6 @@ namespace draw{
 
 namespace game{
   mutex locker;
-  int hp,pw;
   vec map_size;
   class Me{
     public:
@@ -68,14 +67,14 @@ namespace game{
     Color color;           //color
     int faceto;            //face to
     double tm; //last update time
-    void init(){
+    void init(int r,int g,int b){
       position.x=0;
       position.y=0;
       faceto=0;
       tm=gettm();
-	  color.r=(rand()%256);
-	  color.g=(rand()%256);
-	  color.b=(rand()%256);
+	  color.r=r;
+	  color.g=g;
+	  color.b=b;
     }
 	void settm(){
       tm=gettm();
@@ -117,11 +116,11 @@ namespace game{
   }
 
   inline int set_hp(int v){
-    hp=v;
+    me.hp=v;
   }
 
   inline int set_pw(int v){
-  	 pw=v;
+	me.pw=v;
   }
 
   inline void setme(int v1,int v2,int v3,int v4){
@@ -138,8 +137,8 @@ namespace game{
     ::send(connfd,&end,sizeof(end),0);
   }
 
-  inline void addplayer(const string & unm){
-    player[unm].init();
+  inline void addplayer(const string & unm,int r,int g,int b){
+    player[unm].init(r,g,b);
   }
 
   inline void face(const string & unm,int fc){
@@ -240,7 +239,10 @@ namespace game{
 
     if(method=="addplayer"){
     	iss>>name;
-      addplayer(name);
+		iss>>i1;
+		iss>>i2;
+		iss>>i3;
+      addplayer(name,i1,i2,i3);
     }
     if(method=="cremap"){
     	iss>>i1;
@@ -339,8 +341,8 @@ namespace draw{
     }
     if(x<=0)x=0;
     if(y<=0)y=0;
-    if(x>=128)x=128;
-    if(y>=128)y=128;
+    if(x>=game::map_size.x)x=game::map_size.x;
+    if(y>=game::map_size.y)y=game::map_size.y;
 	ret[0]=x;
 	ret[1]=y;
   }
@@ -384,7 +386,22 @@ namespace draw{
       sr.h=50;
     SDL_RenderCopy(renderer,textures[id],&sr,&dr);
   }
-
+  void draw_val(){
+	  SDL_SetRenderDrawColor(renderer, 255, 0, 0, 128);
+	  SDL_Rect sr;
+	  sr.x=10;
+	  sr.y=10;
+	  sr.w=game::me.hp;
+	  sr.h=10;
+	  SDL_RenderFillRect(renderer,&sr);
+	  
+	  SDL_SetRenderDrawColor(renderer, 0, 0, 255, 128);
+	  sr.x=10;
+	  sr.y=20;
+	  sr.w=game::me.pw;
+	  sr.h=10;
+	  SDL_RenderFillRect(renderer,&sr);
+  }
   inline void block_scr(int x,int y,Color c){
     SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, 255);
 	SDL_Rect sr;
@@ -490,8 +507,11 @@ namespace draw{
           }
         }
         int obj=bk.obj;
-        if(obj!=0){
-          obj_abs(x,y,obj);
+        if(obj==2){
+          obj_abs(x,y,2);
+        }
+		if(obj==1 && bk.owner==game::me.name){
+          obj_abs(x,y,1);
         }
       }
     }
@@ -501,7 +521,8 @@ namespace draw{
     
     carema_update();
     all_block();
-    
+    draw_val();
+	
     SDL_RenderPresent(renderer);
   }
 }
