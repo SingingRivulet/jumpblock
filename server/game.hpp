@@ -4,8 +4,9 @@
 #include <iostream>
 #include <stdio.h>
 #include <time.h>
+#include <math.h>
 #include <stdlib.h>
-#include <unordered_map>
+#include <map>
 #include <string>
 #include <stdexcept>
 #include <mutex>
@@ -44,6 +45,7 @@ class game{
     int times;
     int fd;
     int r,g,b;
+    int update_time;
     player(){
       x=0;
       y=0;
@@ -52,23 +54,28 @@ class game{
       times=0;
     }
   };
-  std::unordered_map<std::string,player> players;
-  void senduser(const std::string &name,const std::string & str){
+  std::map<int,player> players;
+  void senduser(int name,const std::string & str){
     auto it=players.find(name);
     if(it==players.end())return;
-    auto ps=str.c_str();
-    send(it->second.fd,ps,strlen(ps),0);
+    auto ps=str;
+    send(it->second.fd,ps.c_str(),strlen(ps.c_str()),0);
   }
   void boardcast(const std::string & str){
-    auto ps=str.c_str();
-    auto len=strlen(ps);
+    auto ps=str;
+    auto len=strlen(ps.c_str());
     for(auto it:players){
-      send(it.second.fd,ps,len,0);
+      send(it.second.fd,ps.c_str(),len,0);
     }
   }
   struct block{
-    std::string player,owner;
+    int player,owner;
     int obj;
+    block(){
+        player=0;
+        owner=0;
+        obj=0;
+    }
   };
   block ** gmap;
   int maxX;
@@ -90,13 +97,13 @@ class game{
     for(ix=0;ix<maxX;ix++){
     gmap[ix]=new block[maxY];
       for(iy=0;iy<maxY;iy++){
-        gmap[ix][iy].player.clear();
-        gmap[ix][iy].owner.clear();
+        gmap[ix][iy].player=0;
+        gmap[ix][iy].owner=0;
         gmap[ix][iy].obj=0;
       }
     }
   }
-  virtual void faceto(const std::string & name,int f){
+  virtual void faceto(int name,int f){
     if(f<0 || f>=4)return;
     auto it=players.find(name);
     if(it==players.end())return;
@@ -115,12 +122,14 @@ class game{
           it.second.hp,
           it.second.pow
         );
-        if(it.second.hp<0){
+        int bttm=fabs(time(NULL)-it.second.update_time);
+        if(it.second.hp<0 || bttm>5){
+          //printf(KGRN "[Game]bttm:%d \n" RESET,bttm);
           quit(it.first);
           continue;
         }
-        //printf(KGRN "[Game]player:%s (%d,%d) \n" RESET,
-        //  it.first.c_str(),
+        //printf(KGRN "[Game]player:%d (%d,%d) \n" RESET,
+        //  it.first,
         //  it.second.x,it.second.y
         //);
         switch(it.second.face){
@@ -169,7 +178,7 @@ class game{
 
     return true;
   }
-  virtual void put(int i,const std::string & name){
+  virtual void put(int i,int name){
     auto it=players.find(name);
     if(it==players.end())return;
     int x=it->second.x;
@@ -185,7 +194,7 @@ class game{
       break;
     }
   }
-  virtual void moveplayerto(const std::string & name,int nx,int ny){
+  virtual void moveplayerto(int name,int nx,int ny){
     if(nx>=maxX)return;
     if(ny>=maxY)return;
     if(nx<0)return;
@@ -201,14 +210,14 @@ class game{
     
     if(x>=0 && y>=0){
       block & ob=gmap[x][y];
-      ob.player.clear();
+      ob.player=0;
     }
     
     block & b=gmap[nx][ny];
     if(b.obj!=0)
       collideobj(nx,ny,name,b.obj);
     
-    if(!b.owner.empty()){
+    if(b.owner!=0){
         if(b.owner!=name){
             auto ito=players.find(b.owner);
             if(ito!=players.end()){
@@ -221,15 +230,20 @@ class game{
         }
     }
     
-    if(b.player.empty()){
+    if(b.player==0){
       it->second.x=nx;
       it->second.y=ny;
       
       if(it->second.hp<200) it->second.hp+=2;
       if(it->second.pow<200)it->second.pow+=5;
       it->second.have++;
-      if(!b.owner.empty())
-        players[b.owner].have--;
+      if(b.owner!=0){
+          auto oit1=players.find(b.owner);
+          if(oit1==players.end()){
+              oit1->second.have--;
+          }
+          //players[b.owner].have--;
+      }
       
       b.owner =name;
       b.player=name;
@@ -240,8 +254,13 @@ class game{
         it->second.y=ny;
       
         it->second.have++;
-        if(!b.owner.empty())
-          players[b.owner].have--;
+        if(b.owner!=0){
+          //players[b.owner].have--;
+          auto oit2=players.find(b.owner);
+          if(oit2==players.end()){
+              oit2->second.have--;
+          }
+        }
       
         b.owner =name;
         b.player=name;
@@ -250,7 +269,7 @@ class game{
     }
     onMove(nx,ny,name);
   }
-  virtual void quit(const std::string &name){
+  virtual void quit(int name){
     auto it=players.find(name);
     if(it==players.end())return;
     try{
@@ -261,14 +280,15 @@ class game{
     
       block & ob=gmap[x][y];
       
-      ob.player.clear();
+      ob.player=0;
     }catch(std::out_of_range &){
         
     }
+    close(it->second.fd);
     players.erase(it);
     onQuit(name);
   }
-  virtual void login(const std::string &name,int fd){
+  virtual void login(int name,int fd){
     player & p=players[name];
     int x=rand()%(this->maxX);
     int y=rand()%(this->maxY);
@@ -283,30 +303,32 @@ class game{
     p.g=(rand()%236)+20;
     p.b=(rand()%236)+20;
     
+    p.update_time=time(NULL);
+    
     moveplayerto(name,x,y);
     onLogin(name,p.r,p.g,p.b);
   }
   
-  virtual void onLogin(const std::string &name,int r,int g,int b){
+  virtual void onLogin(int name,int r,int g,int b){
     char buf[256];
     
-    snprintf(buf,256,"setname %s %d %d %d \n",name.c_str(),r,g,b);
+    snprintf(buf,256,"setname %d %d %d %d \n",name,r,g,b);
     std::string bs=buf;
     senduser(name,bs);
     
-    snprintf(buf,256,"addplayer %s %d %d %d \n",name.c_str(),r,g,b);
+    snprintf(buf,256,"addplayer %d %d %d %d \n",name,r,g,b);
     bs=buf;
     boardcast(bs);
   }
-  virtual void onGetUser(const std::string &name,int a,int b,int c,int d){
+  virtual void onGetUser(int name,int a,int b,int c,int d){
     char buf[256];
     snprintf(buf,256,"setme %d %d %d %d \n",a,b,c,d);
     std::string bs=buf;
     senduser(name,bs);
   }
-  virtual void onFaceto(const std::string &name,int t){
+  virtual void onFaceto(int name,int t){
     char buf[256];
-    snprintf(buf,256,"face %s %d \n",name.c_str(),t);
+    snprintf(buf,256,"face %d %d \n",name,t);
     std::string bs=buf;
     boardcast(bs);
   }
@@ -321,16 +343,16 @@ class game{
     boardcast(bs);
   }
   
-  virtual void onMove(int nx,int ny,const std::string &name){
+  virtual void onMove(int nx,int ny,int name){
     char buf[256];
-    snprintf(buf,256,"move %s %d %d \n",name.c_str(),nx,ny);
+    snprintf(buf,256,"move %d %d %d \n",name,nx,ny);
     std::string bs=buf;
     boardcast(bs);
   }
   
-  virtual void onQuit(const std::string &name){
+  virtual void onQuit(int name){
     char buf[256];
-    snprintf(buf,256,"quit %s \n",name.c_str());
+    snprintf(buf,256,"quit %d \n",name);
     std::string bs=buf;
     boardcast(bs);
     
@@ -338,32 +360,45 @@ class game{
     senduser(name,bs);
   }
   
-  virtual void collideplayer(int nx,int ny,const std::string &name){}
-  virtual void collideobj(int nx,int ny,const std::string &name,int i){
+  virtual void collideplayer(int nx,int ny,int name){}
+  virtual void collideobj(int nx,int ny,int name,int i){
     auto it=players.find(name);
     if(it==players.end())return;
     int ohp=it->second.hp;
+    char buf[256];
+    #define updateUser snprintf(buf,256,\
+        "setme %d %d %d %d \n",\
+        it->second.x,it->second.y,\
+        it->second.hp,it->second.pow);\
+        send(it->second.fd,buf,strlen(buf),0);
     try{
       //printf("%d %d ",it->second.hp,i);
       switch(i){
         case 1:
           it->second.hp=ohp-20;
+          updateUser;
         break;
         case 2:
           it->second.hp=ohp-40;
+          updateUser;
         break;
       }
-      //printf("%s %d\n",name.c_str(),it->second.hp);
+      //printf("%d %d\n",name,it->second.hp);
       put(0,nx,ny);
     }catch(std::out_of_range &){
       
     }
+    #undef updateUser
   }
-  virtual void onMsg(const std::string &name,const std::string & str){
+  virtual void onMsg(int name,const std::string & str){
     std::istringstream iss(str);
     std::string mode;
     iss>>mode;
     int f;
+    auto it=players.find(name);
+    if(it!=players.end()){
+        it->second.update_time=time(NULL);
+    }
     if(mode=="quit"){
       quit(name);
     }else
@@ -397,9 +432,9 @@ class game{
             snprintf(buf,256,"setobj %d %d %d \n",x,y,b.obj);
             block_buffer.push_back(buf);
           }
-          if(!b.owner.empty()){
+          if(b.owner!=0){
             bzero(buf,256);
-            snprintf(buf,256,"setown %d %d %s \n",x,y,b.owner.c_str());
+            snprintf(buf,256,"setown %d %d %d \n",x,y,b.owner);
             block_buffer.push_back(buf);
           }
         }catch(std::out_of_range &){
@@ -413,16 +448,10 @@ class game{
 std::mutex Game_locker;
 
 struct per_session_data {
-  char name[16];
+  int name;
   void randname(){
-    const static char chs[]=
-      "abcdefghijklmnopqrstuvwxyz"
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     begin:
-    for(int i=0;i<15;i++){
-      name[i]=chs[(rand()%(sizeof(chs)-1))];
-    }
-    name[15]='\0';
+    name=fabs(rand() | 1);
     
     Game_locker.lock();
     auto it=Game.players.find(name);
@@ -434,7 +463,7 @@ struct per_session_data {
   }
   void init(int fd){
     randname();
-    std::string n=name;
+    int n=name;
     char buf[256];
     
     Game_locker.lock();
@@ -446,7 +475,7 @@ struct per_session_data {
       //std::string bs="addplayer ";
       //bs+=uit.first;
       //bs+=" \n";
-      snprintf(buf,256,"addplayer %s %d %d %d \n",uit.first.c_str(),uit.second.r,uit.second.g,uit.second.b);
+      snprintf(buf,256,"addplayer %d %d %d %d \n",uit.first,uit.second.r,uit.second.g,uit.second.b);
       send(fd,buf,strlen(buf),0);
     }
     Game_locker.unlock();
@@ -459,7 +488,6 @@ struct per_session_data {
     Game.block_buffer_locker.unlock();
   }
   void onMessage(void * data,int len){
-    name[15]='\0';
     char buf[128];
     int l=len>127 ? 127 : len;
     auto str=(char*)data;
@@ -470,11 +498,10 @@ struct per_session_data {
     
     buf[127]='\0';
     
-    std::string msg=buf,
-    n=name;
+    std::string msg=buf;
     
     Game_locker.lock();
-    Game.onMsg(n,msg);
+    Game.onMsg(name,msg);
     Game_locker.unlock();
   }
   void quit(){

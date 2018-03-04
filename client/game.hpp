@@ -6,7 +6,10 @@ namespace game{
   vec map_size;
   void(*onMove)(int,int);
   void(*onPick)(int,int);
-  struct Mover{
+  bool hurt=false;
+  class Mover{
+    public:
+      bool canover,stop;
       struct posi{
           double x,y;
           posi(){
@@ -19,15 +22,21 @@ namespace game{
       Mover(){
           x=-1;
           y=-1;
+          canover=false;
+          stop=false;
       }
-      void update(int nx,int ny){
-          if(nx==x && ny==y)return;
+      void update(double nx,double ny,bool s=false){
+          if(nx==x && ny==y){
+              if(s)stop=true;
+              return;
+          }else
+              if(s)stop=false;
           if(x==-1 && y==-1){
               from.x=nx;
               from.y=ny;
           }else{
               double np[2];
-              this->getPosi(np);
+              this->getPosi_ori(np);
               from.x=np[0];
               from.y=np[1];
           }
@@ -37,7 +46,25 @@ namespace game{
           x=nx;
           y=ny;
       }
+    public:
       void getPosi(double * p){
+          if(canover && (!stop)){
+               auto t=gettm();
+               dt=t-tm;
+               p[0]=from.x+((to.x-from.x)*dt);
+               p[1]=from.y+((to.y-from.y)*dt);
+               
+               if(p[0]>(map_size.x-1))p[0]=map_size.x-1;
+               if(p[1]>(map_size.y-1))p[1]=map_size.y-1;
+               
+               if(p[0]<0)p[0]=0;
+               if(p[1]<0)p[1]=0;
+          }else{
+              getPosi_ori(p);
+          }
+      }
+    private:
+      inline void getPosi_ori(double * p){
           auto t=gettm();
           dt=t-tm;
           if(dt>1){
@@ -62,6 +89,23 @@ namespace game{
     Color  color;           //color
     int    faceto;          //face to
     Mover  mover;
+    bool isstop(){
+        switch(faceto){
+            case 0:
+              if((position.x+1)>=map_size.x)return true;
+            break;
+            case 1:
+              if((position.y+1)>=map_size.y)return true;
+            break;
+            case 2:
+              if((position.x-1)<0)return true;
+            break;
+            case 3:
+              if((position.y-1)<0)return true;
+            break;
+        }
+        return false;
+    }
     void init(int r,int g,int b){
       position.x=0;
       position.y=0;
@@ -69,9 +113,15 @@ namespace game{
       color.r=r;
       color.g=g;
       color.b=b;
+      mover.canover=true;
     }
     void mover_update(){
-        this->mover.update(position.x,position.y);
+        if(mover.stop){
+            this->mover.update(position.x,position.y,true);
+        }else{
+            mover.stop=isstop();
+            this->mover.update(position.x,position.y);
+        }
     }
   };
   unordered_map<string,Player> player;
@@ -115,7 +165,11 @@ namespace game{
   }
 
   inline int set_hp(int v){
-    me.hp=v;
+      if(v<me.hp)
+          hurt=true;
+      else
+          hurt=false;
+      me.hp=v;
   }
 
   inline int set_pw(int v){
@@ -172,7 +226,10 @@ namespace game{
     if(y>=map_size.y)return;
     
     auto it=player.find(o);
-    if(it==player.end())return;
+    if(it==player.end()){
+        gmap[x][y].color_cache.set(0,0,0);
+        return;
+    }
     
     gmap[x][y].owner=o;
     gmap[x][y].color_cache=it->second.color;
@@ -214,7 +271,7 @@ namespace game{
 
     it->second.position.x=nx;
     it->second.position.y=ny;
-    it->second.mover.update(nx,ny);
+    it->second.mover.update(nx,ny,true);
     
     gmap[nx][ny].player=name;
     gmap[nx][ny].owner =name;
@@ -317,6 +374,9 @@ namespace game{
     if(method=="exit"){
       gameover=true;
     }
+  }
+  void loop(){
+      
   }
 }
 

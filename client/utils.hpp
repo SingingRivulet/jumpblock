@@ -21,7 +21,7 @@
 #include <sys/time.h>
 #include <mutex>
 #include <atomic>
-#include "config.h"
+#include "config.hpp"
 using namespace std;
 int connfd;
 atomic<bool> gameover;
@@ -33,10 +33,17 @@ struct Color{
   uint8_t r,g,b;
   Color()=default;
   Color(const Color&)=default;
-  Color operator=(const Color & in){
+  Color & operator=(const Color & in){
       r=in.r;
       g=in.g;
       b=in.b;
+      return *this;
+  }
+  Color & set(int ir,int ig,int ib){
+      r=ir;
+      g=ig;
+      b=ib;
+      return *this;
   }
 };
 double gettm(){

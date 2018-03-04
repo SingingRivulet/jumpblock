@@ -9,9 +9,9 @@ namespace draw{
   SDL_Surface *WindowScreen = NULL;
   SDL_Renderer *renderer = NULL;
   
-  SDL_Texture* player_textures[4];
-  SDL_Texture* pick_textures[4];
-  SDL_Texture* bomb_textures[2];
+  SDL_Texture* player_textures;
+  SDL_Texture* pick_textures;
+  SDL_Texture* bomb_textures;
   
   struct{
     double x,y;
@@ -184,18 +184,11 @@ namespace draw{
     }
     WindowScreen = SDL_GetWindowSurface(Window);
     renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED);
-    player_textures[0]=loadTexture("img/right.bmp");
-    player_textures[1]=loadTexture("img/down.bmp");
-    player_textures[2]=loadTexture("img/left.bmp");
-    player_textures[3]=loadTexture("img/up.bmp");
     
-    bomb_textures[0]=loadTexture("img/bomb1.bmp");
-    bomb_textures[1]=loadTexture("img/bomb2.bmp");
+    player_textures=loadTexture("img/player.bmp");
+    bomb_textures=loadTexture("img/bomb.bmp");
+    pick_textures=loadTexture("img/pick.bmp");
     
-    pick_textures[0]=loadTexture("img/pick1.bmp");
-    pick_textures[1]=loadTexture("img/pick2.bmp");
-    pick_textures[2]=loadTexture("img/pick3.bmp");
-    pick_textures[3]=loadTexture("img/pick4.bmp");
     game::onPick=onPick;
   }
   inline void freeTx(SDL_Texture * t){
@@ -205,35 +198,48 @@ namespace draw{
   }
   void destroy(){
     int i;
-    for(i=0;i<4;i++)freeTx(player_textures[i]);
-    for(i=0;i<2;i++)freeTx(bomb_textures[i]);
-    for(i=0;i<4;i++)freeTx(pick_textures[i]);
+    freeTx(player_textures);
+    freeTx(bomb_textures);
+    freeTx(pick_textures);
     
     SDL_DestroyWindow(Window);
     SDL_DestroyRenderer(renderer);
     SDL_Quit();
   }
 
-  bool draw_texture(SDL_Texture * tx,int x,int y){
+  bool draw_texture(SDL_Texture * tx,int x,int y,int ix,int iy){
       if(tx==NULL)return false;
       SDL_Rect sr,dr;
+      
       sr.x=(x-5)*5+150;
       sr.y=(y-5)*5+150;
       sr.w=50;
       sr.h=50;
+      
+      dr.x=ix*50;
+      dr.y=iy*50;
+      dr.w=50;
+      dr.h=50;
+      
     SDL_RenderCopy(renderer,tx,&sr,&dr);
     return true;
   }
   void draw_frame(int x,int y,int id){
       if(id<0)return;
       if(id>=4)return;
-      if(pick_textures[id]!=NULL){
+      if(pick_textures!=NULL){
           SDL_Rect sr,dr;
           sr.x=(x-5)*5+140;
           sr.y=(y-5)*5+140;
           sr.w=70;
           sr.h=70;
-          SDL_RenderCopy(renderer,pick_textures[id],&sr,&dr);
+          
+          dr.x=70*id;
+          dr.y=0;
+          dr.w=70;
+          dr.h=70;
+          
+          SDL_RenderCopy(renderer,pick_textures,&sr,&dr);
       }else{
           SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
           SDL_Rect sr;
@@ -276,8 +282,13 @@ namespace draw{
     abs2scr(x,y,p);
     block_scr(p.x,p.y,c);
   }
+  int get_frame_step(){
+      struct timeval tv;
+      gettimeofday(&tv,NULL);
+      return tv.tv_usec / 10000000;
+  }
   inline void obj_scr(int x,int y,int i){
-    if(!draw_texture(player_textures[i],x,y)){
+    if(!draw_texture(player_textures,x,y,i,(get_frame_step()%20))){
         if(i==1){
             SDL_SetRenderDrawColor(renderer, 128,64,64,64);
         }else
@@ -300,7 +311,7 @@ namespace draw{
   }
   inline void player_scr(int x,int y,int f,Color c){
     if(f<4 && f>=0){
-        if(!draw_texture(player_textures[f],x,y)){
+        if(!draw_texture(player_textures,x,y,f,(get_frame_step()%20))){
             SDL_SetRenderDrawColor(renderer, 128,128,128, 255);
             SDL_Rect sr;
             sr.x=(x-5)*5+152;
@@ -325,7 +336,11 @@ namespace draw{
     double pt[2];
     //getposi_time(game::me.position.x,game::me.position.y,pl.faceto,systime-t,pt);
     
-    cam_p.update(game::me.position.x,game::me.position.y);
+    pl.mover_update();
+    pl.mover.getPosi(pt);
+    
+    //cam_p.update(game::me.position.x,game::me.position.y);
+    cam_p.update(pt[0],pt[1]);
     cam_p.getPosi(pt);
     //if(cam_p.dt>1 && cam_p.dt<2){
     //	pt[0]=cam_p.from.x+((cam_p.to.x-cam_p.from.x)*cam_p.dt*0.5);
@@ -422,14 +437,44 @@ namespace draw{
       abs2scr(x,y,p);
       draw_frame(p.x,p.y,id);
     });
+    if(game::hurt){
+        game::hurt=false;
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+        SDL_Rect sr;
+        sr.x=0;
+        sr.y=0;
+        sr.w=500;
+        sr.h=10;
+        SDL_RenderFillRect(renderer,&sr);
+        
+        sr.w=10;
+        sr.h=500;
+        SDL_RenderFillRect(renderer,&sr);
+        
+        sr.x=490;
+        SDL_RenderFillRect(renderer,&sr);
+        
+        sr.w=500;
+        sr.h=10;
+        sr.y=490;
+        sr.x=0;
+        SDL_RenderFillRect(renderer,&sr);
+    }
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderPresent(renderer);
   }
 }
-char   Game_addr_default[]=ADDR;
-const char * Game_addr    =Game_addr_default;
-short  Game_port          =PORT;
+
+void * heart(void*){
+    const string str="heart";
+    while(!gameover){
+        sleep(1);
+        game::send(str);
+    }
+}
 
 void * mainloop(void*){  
+  loadconfig();
   struct sockaddr_in address;
   address.sin_family = AF_INET;
   address.sin_addr.s_addr = inet_addr(Game_addr);
@@ -477,6 +522,7 @@ int main(int argn,char ** args){
   //ml.detach();
   pthread_t newthread;
   pthread_create(&newthread,NULL,mainloop,NULL);
+  pthread_create(&newthread,NULL,heart,NULL);
   
   double x,y,dx,dy,adx,ady;
   
@@ -488,6 +534,7 @@ int main(int argn,char ** args){
   while(!gameover){
     game::locker.lock();
     draw::render();
+    game::loop();
     while( SDL_PollEvent( &e ) != 0 ){
       if( e.type == SDL_QUIT ){
         gameover=true;
