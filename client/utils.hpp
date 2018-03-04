@@ -19,7 +19,6 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <thread>
 #include <mutex>
 #include <atomic>
 #include "config.h"
@@ -35,9 +34,9 @@ struct Color{
   Color()=default;
   Color(const Color&)=default;
   Color operator=(const Color & in){
-	  r=in.r;
-	  g=in.g;
-	  b=in.b;
+      r=in.r;
+      g=in.g;
+      b=in.b;
   }
 };
 double gettm(){

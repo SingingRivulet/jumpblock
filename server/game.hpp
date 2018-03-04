@@ -208,14 +208,20 @@ class game{
     if(b.obj!=0)
       collideobj(nx,ny,name,b.obj);
     
-	if((!b.owner.empty()) && b.owner!=name){
-		auto ito=players.find(b.owner);
-		if(ito!=players.end()){
-			ito->second.hp-=5;
-		}
-	}
-	
-	if(b.player.empty()){
+    if(!b.owner.empty()){
+        if(b.owner!=name){
+            auto ito=players.find(b.owner);
+            if(ito!=players.end()){
+                ito->second.hp-=5;
+                it->second.pow-=10;
+            }
+        }else{
+            if(it->second.hp<300) it->second.hp+=3;
+            if(it->second.pow<300)it->second.pow+=5;
+        }
+    }
+    
+    if(b.player.empty()){
       it->second.x=nx;
       it->second.y=ny;
       
@@ -272,12 +278,12 @@ class game{
     p.hp=50;
     p.pow=0;
     p.fd=fd;
-	
-	p.r=(rand()%236)+20;
-	p.g=(rand()%236)+20;
-	p.b=(rand()%236)+20;
     
-	moveplayerto(name,x,y);
+    p.r=(rand()%236)+20;
+    p.g=(rand()%236)+20;
+    p.b=(rand()%236)+20;
+    
+    moveplayerto(name,x,y);
     onLogin(name,p.r,p.g,p.b);
   }
   
@@ -441,7 +447,7 @@ struct per_session_data {
       //bs+=uit.first;
       //bs+=" \n";
       snprintf(buf,256,"addplayer %s %d %d %d \n",uit.first.c_str(),uit.second.r,uit.second.g,uit.second.b);
-	  send(fd,buf,strlen(buf),0);
+      send(fd,buf,strlen(buf),0);
     }
     Game_locker.unlock();
     
