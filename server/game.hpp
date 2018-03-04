@@ -154,16 +154,20 @@ class game{
       }
     }
   }
-  virtual void put(int i,int nx,int ny){
-    if(nx>=maxX)return;
-    if(ny>=maxY)return;
-    if(nx<0)return;
-    if(ny<0)return;
+  virtual bool put(int i,int nx,int ny){
+    if(nx>=maxX)return false;
+    if(ny>=maxY)return false;
+    if(nx<0)return false;
+    if(ny<0)return false;
     
     block & ob=gmap[nx][ny];
-    
+
+    if(ob.obj==i)return false;
+
     ob.obj=i;
     onPut(i,nx,ny);
+
+    return true;
   }
   virtual void put(int i,const std::string & name){
     auto it=players.find(name);
@@ -173,13 +177,11 @@ class game{
     switch(i){
       case 1:
         if(it->second.pow<20)break;
-        it->second.pow-=20;
-        put(i,x,y);
+        if(put(i,x,y))it->second.pow-=20;
       break;
       case 2:
         if(it->second.pow<20)break;
-        it->second.pow-=20;
-        put(i,x,y);
+        if(put(i,x,y))it->second.pow-=20;
       break;
     }
   }

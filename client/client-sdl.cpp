@@ -105,8 +105,8 @@ namespace game{
     for(ix=0;ix<x;ix++){
     gmap[ix]=new block[y];
       for(iy=0;iy<y;iy++){
-        gmap[ix][iy].player.clear();
-        gmap[ix][iy].owner.clear();
+        gmap[ix][iy].player="";
+        gmap[ix][iy].owner ="";
         gmap[ix][iy].obj=0;
       }
     }
@@ -201,16 +201,14 @@ namespace game{
     int x=it->second.position.x;
     int y=it->second.position.y;
 
-    if(x<map_size.x)
-    if(y<map_size.y)
-    if(x>=0 && y>=0){
-      block & ob=gmap[x][y];
-      ob.owner=ob.player;
-	  ob.player.clear();
+    if(x<map_size.x && y<map_size.y && x>=0 && y>=0){
+      
+      //gmap[x][y].owner=gmap[x][y].player;
+	  gmap[x][y].player="";
     }
 
-    it->second.position.x=x;
-    it->second.position.y=y;
+    it->second.position.x=nx;
+    it->second.position.y=ny;
     it->second.tm=gettm();
 	
     gmap[nx][ny].player=name;
@@ -332,7 +330,9 @@ namespace draw{
   inline void getposi_time(double bx,double by,int f,double t,double * ret){
     double x=bx;
     double y=by;
-  
+    if(t<0){
+	  
+	}else
     if(f==0){
       x+=(t-1);
     }else
@@ -385,14 +385,15 @@ namespace draw{
 	loadTexture("img/bomb2.bmp");
   }
 
-  void draw_texture(int id,int x,int y){
-      if(id>=textures.size())return;
+  bool draw_texture(int id,int x,int y){
+      if(id>=textures.size())return false;
 	  SDL_Rect sr,dr;
       sr.x=(x-5)*5+150;
       sr.y=(y-5)*5+150;
 	  sr.w=50;
       sr.h=50;
     SDL_RenderCopy(renderer,textures[id],&sr,&dr);
+	return true;
   }
   void draw_val(){
 	  SDL_SetRenderDrawColor(renderer, 255, 0, 0, 128);
@@ -427,7 +428,21 @@ namespace draw{
     block_scr(p.x,p.y,c);
   }
   inline void obj_scr(int x,int y,int i){
-    draw_texture(i+3,x,y);
+    if(!draw_texture(i+3,x,y)){
+		if(i==1){
+			SDL_SetRenderDrawColor(renderer, 128,64,64,64);
+		}else
+		if(i==2){
+			SDL_SetRenderDrawColor(renderer, 255,64,64,128);
+		}
+		SDL_Rect sr;
+		sr.x=(x-5)*5+152;
+		sr.y=(y-5)*5+152;
+		sr.w=20;
+		sr.h=20;
+		SDL_RenderFillRect(renderer,&sr);
+
+    }
   }
   inline void obj_abs(int x,int y,int i){
     vec p;
@@ -435,7 +450,17 @@ namespace draw{
     obj_scr(p.x,p.y,i);
   }
   inline void player_scr(int x,int y,int f,Color c){
-    if(f<4 && f>=0)draw_texture(f,x,y);
+    if(f<4 && f>=0){
+		if(!draw_texture(f,x,y)){
+			SDL_SetRenderDrawColor(renderer, 128,128,128, 255);
+			SDL_Rect sr;
+			sr.x=(x-5)*5+152;
+			sr.y=(y-5)*5+152;
+			sr.w=20;
+			sr.h=20;
+			SDL_RenderFillRect(renderer,&sr);
+		}
+	}
   }
   inline void player_abs(int x,int y,int f,Color c,double t){
     double pt[2];
@@ -587,13 +612,15 @@ namespace draw{
     SDL_RenderPresent(renderer);
   }
 }
+char   Game_addr_default[]=ADDR;
+const char * Game_addr    =Game_addr_default;
+short  Game_port          =PORT;
+
 void mainloop(){  
-  char addr[]=ADDR;
-  short port=PORT;
   struct sockaddr_in address;
   address.sin_family = AF_INET;
-  address.sin_addr.s_addr = inet_addr(addr);
-  address.sin_port = htons(port);
+  address.sin_addr.s_addr = inet_addr(Game_addr);
+  address.sin_port = htons(Game_port);
   
   game::locker.lock();
   connfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -621,7 +648,11 @@ void mainloop(){
   
   close(connfd);
 }
-int main(){
+int main(int argn,char ** args){
+  if(argn==3){
+	  Game_addr=args[1];
+	  Game_port=atoi(args[2]);
+  }
   SDL_Event e;
   srand(time(NULL));
   draw::init();
