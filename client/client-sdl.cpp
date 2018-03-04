@@ -56,6 +56,49 @@ namespace draw{
 namespace game{
   mutex locker;
   vec map_size;
+  struct Mover{
+	  struct posi{
+		  double x,y;
+		  posi(){
+			  x=0;
+			  y=0;
+		  }
+	  }from,to;
+	  double tm,dt;
+	  int x,y;
+	  Mover(){
+		  x=-1;
+		  y=-1;
+	  }
+	  void update(int nx,int ny){
+		  if(nx==x && ny==y)return;
+		  if(x==-1 && y==-1){
+			  from.x=nx;
+			  from.y=ny;
+		  }else{
+			  double np[2];
+			  this->getPosi(np);
+			  from.x=np[0];
+			  from.y=np[1];
+		  }
+		  tm=gettm();
+		  to.x=nx;
+		  to.y=ny;
+		  x=nx;
+		  y=ny;
+	  }
+	  void getPosi(double * p){
+		  auto t=gettm();
+		  dt=t-tm;
+		  if(dt>1){
+			  p[0]=to.x;
+			  p[1]=to.y;
+		  }else{
+			  p[0]=from.x+((to.x-from.x)*dt);
+			  p[1]=from.y+((to.y-from.y)*dt);
+		  }
+	  }
+  };
   class Me{
     public:
   	 string name;
@@ -65,21 +108,20 @@ namespace game{
 
   class Player{
     public:
-    vec position;          //position
-    Color color;           //color
-    int faceto;            //face to
-    double tm;             //last update time
+    vec    position;        //position
+    Color  color;           //color
+    int    faceto;          //face to
+	Mover  mover;
     void init(int r,int g,int b){
       position.x=0;
       position.y=0;
       faceto=0;
-      tm=gettm();
-	  color.r=r;
+      color.r=r;
 	  color.g=g;
 	  color.b=b;
     }
-	void settm(){
-      tm=gettm();
+	void mover_update(){
+		this->mover.update(position.x,position.y);
     }
   };
   unordered_map<string,Player> player;
@@ -88,6 +130,11 @@ namespace game{
     string player,owner;
     int obj;
 	Color color_cache;
+	block(){
+		color_cache.r=10;
+		color_cache.g=10;
+		color_cache.b=40;
+	}
   };
 
   block ** gmap=NULL;
@@ -172,7 +219,12 @@ namespace game{
     if(y<0)return;
     if(x>=map_size.x)return;
     if(y>=map_size.y)return;
+	
+	auto it=player.find(o);
+    if(it==player.end())return;
+    
     gmap[x][y].owner=o;
+	gmap[x][y].color_cache=it->second.color;
   }
 
   inline void pick(int x,int y){
@@ -210,7 +262,7 @@ namespace game{
 
     it->second.position.x=nx;
     it->second.position.y=ny;
-    it->second.tm=gettm();
+	it->second.mover.update(nx,ny);
 	
     gmap[nx][ny].player=name;
     gmap[nx][ny].owner =name;
@@ -463,57 +515,13 @@ namespace draw{
 		}
 	}
   }
-  inline void player_abs(int x,int y,int f,Color c,double t){
-    double pt[2];
-    getposi_time(x,y,f,t,pt);
-	vec p;
-    abs2scr(pt[0],pt[1],p);
+  inline void player_abs(double x,double y,int f,Color c){
+    vec p;
+    abs2scr(x,y,p);
     player_scr(p.x,p.y,f,c);
   }
   
-  struct Camera{
-	  struct posi{
-		  double x,y;
-		  posi(){
-			  x=0;
-			  y=0;
-		  }
-	  }from,to;
-	  double tm,dt;
-	  int x,y;
-	  Camera(){
-		  x=-1;
-		  y=-1;
-	  }
-	  void update(int nx,int ny){
-		  if(nx==x && ny==y)return;
-		  if(x==-1 && y==-1){
-			  from.x=nx;
-			  from.y=ny;
-		  }else{
-			  double np[2];
-			  getCam(np);
-			  from.x=np[0];
-			  from.y=np[1];
-		  }
-		  tm=gettm();
-		  to.x=nx;
-		  to.y=ny;
-		  x=nx;
-		  y=ny;
-	  }
-	  void getCam(double * p){
-		  auto t=gettm();
-		  dt=t-tm;
-		  if(dt>1){
-			  p[0]=to.x;
-			  p[1]=to.y;
-		  }else{
-			  p[0]=from.x+((to.x-from.x)*dt);
-			  p[1]=from.y+((to.y-from.y)*dt);
-		  }
-	  }
-  }cam_p;
+  game::Mover cam_p;
   inline void camera_update(){
     auto pl=game::player[game::me.name];
 	//auto systime=gettm();
@@ -522,7 +530,7 @@ namespace draw{
 	//getposi_time(game::me.position.x,game::me.position.y,pl.faceto,systime-t,pt);
     
 	cam_p.update(game::me.position.x,game::me.position.y);
-	cam_p.getCam(pt);
+	cam_p.getPosi(pt);
 	//if(cam_p.dt>1 && cam_p.dt<2){
 	//	pt[0]=cam_p.from.x+((cam_p.to.x-cam_p.from.x)*cam_p.dt*0.5);
 	//	pt[1]=cam_p.from.y+((cam_p.to.y-cam_p.from.y)*cam_p.dt*0.5);
@@ -537,9 +545,10 @@ namespace draw{
 
   void all_block(){
     Color defcol;
-	defcol.r=0;
-	defcol.g=0;
-	defcol.b=0;
+	defcol.r=20;
+	defcol.g=20;
+	defcol.b=20;
+	double posi[2];
 	int cx=floor(camera.x);
     int cy=floor(camera.y);
 	int bx=cx-10;
@@ -586,10 +595,12 @@ namespace draw{
         if(!player.empty()){
           auto pt=game::player.find(player);
           if(pt!=game::player.end()){
+			pt->second.mover_update();
+            pt->second.mover.getPosi(posi);
             player_abs(
-              x,y,
-			  pt->second.faceto,pt->second.color,
-              (double)(gettm()-pt->second.tm)
+              //x,y,
+			  posi[0],posi[1],
+			  pt->second.faceto,pt->second.color
             );
           }
         }

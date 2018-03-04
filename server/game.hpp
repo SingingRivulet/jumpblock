@@ -265,9 +265,9 @@ class game{
     p.pow=0;
     p.fd=fd;
 	
-	p.r=rand()%256;
-	p.g=rand()%256;
-	p.b=rand()%256;
+	p.r=(rand()%236)+20;
+	p.g=(rand()%236)+20;
+	p.b=(rand()%236)+20;
     
 	moveplayerto(name,x,y);
     onLogin(name,p.r,p.g,p.b);
