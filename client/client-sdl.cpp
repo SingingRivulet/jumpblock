@@ -19,6 +19,7 @@
 #include <sys/time.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_mixer.h>
 #include <thread>
 #include <mutex>
 #include <atomic>
@@ -660,6 +661,12 @@ int main(int argn,char ** args){
   thread ml(mainloop);
   ml.detach();
   double x,y,dx,dy,adx,ady;
+  
+  Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048);
+  Mix_Music *sound=NULL;
+  sound=Mix_LoadMUS("sound/SingingRivulet.ogg");
+  if(sound)Mix_PlayMusic(sound,1);
+  
   while(!gameover){
     game::locker.lock();
     draw::render();
