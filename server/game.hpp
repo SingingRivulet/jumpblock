@@ -207,7 +207,15 @@ class game{
     block & b=gmap[nx][ny];
     if(b.obj!=0)
       collideobj(nx,ny,name,b.obj);
-    if(b.player.empty()){
+    
+	if((!b.owner.empty()) && b.owner!=name){
+		auto ito=players.find(b.owner);
+		if(ito!=players.end()){
+			ito->second.hp-=5;
+		}
+	}
+	
+	if(b.player.empty()){
       it->second.x=nx;
       it->second.y=ny;
       

@@ -1,374 +1,16 @@
-#include <vector>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unordered_map>
-#include <math.h>
-#include <string.h>
-#include <string>
-#include <sstream>
-#include <ctype.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <sys/file.h>
-#include <ctype.h>
-#include <time.h>
-#include <sys/stat.h>
-#include <sys/time.h>
+#include "game.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
-#include <thread>
-#include <mutex>
-#include <atomic>
-#include "config.h"
-using namespace std;
-int connfd;
-atomic<bool> gameover;
-struct vec{
-  int x;
-  int y;
-};
-struct Color{
-  Uint8 r,g,b;
-  Color()=default;
-  Color(const Color&)=default;
-  Color operator=(const Color & in){
-	  r=in.r;
-	  g=in.g;
-	  b=in.b;
-  }
-};
-double gettm(){
-  struct timeval tv;
-  gettimeofday(&tv,NULL);
-  return (((double)tv.tv_sec) + ((double)tv.tv_usec / 1000000.0));
-}
+
 namespace draw{
   SDL_Window *Window = NULL;
   SDL_Surface *WindowScreen = NULL;
   SDL_Renderer *renderer = NULL;
-  vector<SDL_Texture*> textures;
-}
-
-namespace game{
-  mutex locker;
-  vec map_size;
-  struct Mover{
-	  struct posi{
-		  double x,y;
-		  posi(){
-			  x=0;
-			  y=0;
-		  }
-	  }from,to;
-	  double tm,dt;
-	  int x,y;
-	  Mover(){
-		  x=-1;
-		  y=-1;
-	  }
-	  void update(int nx,int ny){
-		  if(nx==x && ny==y)return;
-		  if(x==-1 && y==-1){
-			  from.x=nx;
-			  from.y=ny;
-		  }else{
-			  double np[2];
-			  this->getPosi(np);
-			  from.x=np[0];
-			  from.y=np[1];
-		  }
-		  tm=gettm();
-		  to.x=nx;
-		  to.y=ny;
-		  x=nx;
-		  y=ny;
-	  }
-	  void getPosi(double * p){
-		  auto t=gettm();
-		  dt=t-tm;
-		  if(dt>1){
-			  p[0]=to.x;
-			  p[1]=to.y;
-		  }else{
-			  p[0]=from.x+((to.x-from.x)*dt);
-			  p[1]=from.y+((to.y-from.y)*dt);
-		  }
-	  }
-  };
-  class Me{
-    public:
-  	 string name;
-  	 int pw,hp;
-  	 vec position;
-  }me;
-
-  class Player{
-    public:
-    vec    position;        //position
-    Color  color;           //color
-    int    faceto;          //face to
-	Mover  mover;
-    void init(int r,int g,int b){
-      position.x=0;
-      position.y=0;
-      faceto=0;
-      color.r=r;
-	  color.g=g;
-	  color.b=b;
-    }
-	void mover_update(){
-		this->mover.update(position.x,position.y);
-    }
-  };
-  unordered_map<string,Player> player;
-
-  struct block{
-    string player,owner;
-    int obj;
-	Color color_cache;
-	block(){
-		color_cache.r=10;
-		color_cache.g=10;
-		color_cache.b=40;
-	}
-  };
-
-  block ** gmap=NULL;
-
-  void destroy(){
-    if(gmap){
-      for(int ix=0;ix<map_size.x;ix++)
-        delete [] gmap[ix];
-      delete [] gmap;
-    }
-  }
-  void init(int x,int y){
-	if(gmap)return;
-    int ix,iy;
-    gmap=new block*[x];
-    for(ix=0;ix<x;ix++){
-    gmap[ix]=new block[y];
-      for(iy=0;iy<y;iy++){
-        gmap[ix][iy].player="";
-        gmap[ix][iy].owner ="";
-        gmap[ix][iy].obj=0;
-      }
-    }
-  }
-
-  inline void setname(const string & n){
-    me.name=n;
-  }
-
-  inline int set_hp(int v){
-    me.hp=v;
-  }
-
-  inline int set_pw(int v){
-	me.pw=v;
-  }
-
-  inline void setme(int v1,int v2,int v3,int v4){
-    me.position.x=v1;
-    me.position.y=v2;
-    set_hp(v3);
-    set_pw(v4);
-  }
-
-  inline void send(const string & msg){
-    const char * buf=msg.c_str();
-    ::send(connfd,buf,strlen(buf),0);
-    char end='\n';
-    ::send(connfd,&end,sizeof(end),0);
-  }
-
-  inline void addplayer(const string & unm,int r,int g,int b){
-    player[unm].init(r,g,b);
-  }
-
-  inline void face(const string & unm,int fc){
-    player[unm].faceto=fc;
-  }
-
-  inline void quit(){
-    static const string str="quit";
-    send(str);
-  }
-
-  inline void quitplayer(const string & unm){
-    vec & posi=player[unm].position;
-    int x=posi.x;
-    int y=posi.y;
-    gmap[x][y].owner.clear();
-    player.erase(unm);
-	if(unm==me.name)gameover=true;
-  }
-
-  inline void createmap(int x,int y){
-    map_size.x=x;
-    map_size.y=y;
-    init(x,y);
-  }
-
-  inline void setmapown(int x,int y,const string & o){
-    if(x<0)return;
-    if(y<0)return;
-    if(x>=map_size.x)return;
-    if(y>=map_size.y)return;
-	
-	auto it=player.find(o);
-    if(it==player.end())return;
-    
-    gmap[x][y].owner=o;
-	gmap[x][y].color_cache=it->second.color;
-  }
-
-  inline void pick(int x,int y){
-    if(x<0)return;
-    if(y<0)return;
-    if(x>=map_size.x)return;
-    if(y>=map_size.y)return;
-    gmap[x][y].obj=0;
-  }
-
-  inline void setmapobj(int x,int y,int o){
-    if(x<0)return;
-    if(y<0)return;
-    if(x>=map_size.x)return;
-    if(y>=map_size.y)return;
-    gmap[x][y].obj=o;
-  }
-
-  inline void moveplayerto(const string & name,int nx,int ny){
-    if(nx<0)return;
-    if(ny<0)return;
-    if(nx>=map_size.x)return;
-    if(ny>=map_size.y)return;
-
-    auto it=player.find(name);
-    if(it==player.end())return;
-    int x=it->second.position.x;
-    int y=it->second.position.y;
-
-    if(x<map_size.x && y<map_size.y && x>=0 && y>=0){
-      
-      //gmap[x][y].owner=gmap[x][y].player;
-	  gmap[x][y].player="";
-    }
-
-    it->second.position.x=nx;
-    it->second.position.y=ny;
-	it->second.mover.update(nx,ny);
-	
-    gmap[nx][ny].player=name;
-    gmap[nx][ny].owner =name;
-	gmap[nx][ny].color_cache=it->second.color;
-  }
-
-  inline void put(int i){
-    char buf[64];
-    snprintf(buf,64,"put %d",i);
-    send(buf);
-  }
   
-  int jubk_lastf;
-  inline void walk(int f){
-    if(f==jubk_lastf){
-		put(2);
-		return;
-    }
-    jubk_lastf=f;
-    char buf[64];
-    snprintf(buf,64,"walk %d",f);
-    send(buf);
-  }
-
-
-  void onmsg(const string & m){
-    istringstream iss(m);
-    string method,name;
-    int i1,i2,i3,i4;
-    iss>>method;
-
-    if(method=="addplayer"){
-    	iss>>name;
-		iss>>i1;
-		iss>>i2;
-		iss>>i3;
-      addplayer(name,i1,i2,i3);
-    }
-    if(method=="cremap"){
-    	iss>>i1;
-    	iss>>i2;
-      createmap(
-        i1,i2
-      );
-    }else
-    if(method=="quit"){
-    	iss>>name;
-      quitplayer(name);
-    }else
-    if(method=="move"){
-    	iss>>name;
-    	iss>>i1;
-    	iss>>i2;
-      moveplayerto(
-        name,
-        i1,i2
-      );
-    }else
-    if(method=="face"){
-    	iss>>name;
-    	iss>>i1;
-      face(name,i1);
-    }else
-    if(method=="setme"){
-    	iss>>i1;
-    	iss>>i2;
-    	iss>>i3;
-    	iss>>i4;
-      setme(
-        i1,i2,i3,i4
-      );
-    }else
-    if(method=="pick"){
-    	iss>>i1;
-    	iss>>i2;
-      pick(
-        i1,i2
-      );
-    }else
-    if(method=="setobj"){
-    	iss>>i1;
-    	iss>>i2;
-    	iss>>i3;
-      setmapobj(
-        i1,i2,i3
-      );
-    }else
-    if(method=="setown"){
-    	iss>>i1;
-    	iss>>i2;
-    	iss>>name;
-      setmapown(
-        i1,i2,name
-      );
-    }else
-    if(method=="setname"){
-    	iss>>name;
-      setname(name);
-    }else
-    if(method=="exit"){
-      gameover=true;
-    }
-  }
-}
-
-namespace draw{
+  SDL_Texture* player_textures[4];
+  SDL_Texture* bomb_textures[2];
+  
   struct{
     double x,y;
   }camera;
@@ -405,16 +47,18 @@ namespace draw{
 	ret[0]=x;
 	ret[1]=y;
   }
-  void loadTexture(const char * path){
+  SDL_Texture * loadTexture(const char * path){
     SDL_Surface *bitmapSurface = NULL;
     SDL_Texture *bitmapTex = NULL;
     bitmapSurface = SDL_LoadBMP(path);
-	if(bitmapSurface==NULL)return;
+	if(bitmapSurface==NULL)
+		return NULL;
 	SDL_SetColorKey(bitmapSurface,true,SDL_MapRGB(bitmapSurface->format,255,255,255));
     bitmapTex = SDL_CreateTextureFromSurface(renderer, bitmapSurface);
-    if(bitmapTex==NULL)return;
+    if(bitmapTex==NULL)
+		return NULL;
 	SDL_FreeSurface(bitmapSurface);
-    textures.push_back(bitmapTex);
+    return (bitmapTex);
   }
 
   void init(){
@@ -430,22 +74,36 @@ namespace draw{
     }
 	WindowScreen = SDL_GetWindowSurface(Window);
     renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED);
-	loadTexture("img/right.bmp");
-	loadTexture("img/down.bmp");
-	loadTexture("img/left.bmp");
-	loadTexture("img/up.bmp");
-	loadTexture("img/bomb1.bmp");
-	loadTexture("img/bomb2.bmp");
+	player_textures[0]=loadTexture("img/right.bmp");
+	player_textures[1]=loadTexture("img/down.bmp");
+	player_textures[2]=loadTexture("img/left.bmp");
+	player_textures[3]=loadTexture("img/up.bmp");
+	
+	bomb_textures[0]=loadTexture("img/bomb1.bmp");
+	bomb_textures[1]=loadTexture("img/bomb2.bmp");
+  }
+  inline void freeTx(SDL_Texture * t){
+	  if(t){
+		  SDL_DestroyTexture(t);
+	  }
+  }
+  void destroy(){
+	int i;
+	for(i=0;i<4;i++)freeTx(player_textures[i]);
+	for(i=0;i<2;i++)freeTx(bomb_textures[i]);
+	SDL_DestroyWindow(Window);
+	SDL_DestroyRenderer(renderer);
+	SDL_Quit();
   }
 
-  bool draw_texture(int id,int x,int y){
-      if(id>=textures.size())return false;
+  bool draw_texture(SDL_Texture * tx,int x,int y){
+      if(tx==NULL)return false;
 	  SDL_Rect sr,dr;
       sr.x=(x-5)*5+150;
       sr.y=(y-5)*5+150;
 	  sr.w=50;
       sr.h=50;
-    SDL_RenderCopy(renderer,textures[id],&sr,&dr);
+    SDL_RenderCopy(renderer,tx,&sr,&dr);
 	return true;
   }
   void draw_val(){
@@ -481,7 +139,7 @@ namespace draw{
     block_scr(p.x,p.y,c);
   }
   inline void obj_scr(int x,int y,int i){
-    if(!draw_texture(i+3,x,y)){
+    if(!draw_texture(player_textures[i],x,y)){
 		if(i==1){
 			SDL_SetRenderDrawColor(renderer, 128,64,64,64);
 		}else
@@ -504,7 +162,7 @@ namespace draw{
   }
   inline void player_scr(int x,int y,int f,Color c){
     if(f<4 && f>=0){
-		if(!draw_texture(f,x,y)){
+		if(!draw_texture(player_textures[f],x,y)){
 			SDL_SetRenderDrawColor(renderer, 128,128,128, 255);
 			SDL_Rect sr;
 			sr.x=(x-5)*5+152;
@@ -738,12 +396,7 @@ int main(int argn,char ** args){
     }
 	game::locker.unlock();
   }
-  SDL_DestroyWindow(draw::Window);
-  SDL_DestroyRenderer(draw::renderer);
-  for(auto it:draw::textures){
-    SDL_DestroyTexture(it);
-  }
-  SDL_Quit();
+  draw::destroy();
   game::destroy();
   return 0;
 }
