@@ -10,6 +10,7 @@
 #include <string>
 #include <stdexcept>
 #include <mutex>
+#include <atomic>
 
 #define KGRN "\033[0;32;32m"
 #define KCYN "\033[0;36m"
@@ -36,6 +37,7 @@ class game{
   }
   class player{
     public:
+    bool start;
     int hp;
     int pow;
     int x;
@@ -47,6 +49,7 @@ class game{
     int r,g,b;
     int update_time;
     player(){
+      start=false;
       x=0;
       y=0;
       have=0;
@@ -115,6 +118,7 @@ class game{
     times++;
     for(auto it:players){
       try{
+        if(!it.second.start)continue;
         it.second.times++;
         onGetUser(
           it.first,
@@ -304,6 +308,7 @@ class game{
     p.b=(rand()%236)+20;
     
     p.update_time=time(NULL);
+    p.start=true;
     
     moveplayerto(name,x,y);
     onLogin(name,p.r,p.g,p.b);
@@ -446,20 +451,22 @@ class game{
 }Game;
 
 std::mutex Game_locker;
-
+std::atomic<int> name_increment;
 struct per_session_data {
   int name;
   void randname(){
-    begin:
-    name=fabs(rand() | 1);
+    if(name_increment==0)name_increment++;
+    name=name_increment++;
+    //begin:
+    //name=fabs(rand() | 1);
     
-    Game_locker.lock();
-    auto it=Game.players.find(name);
-    if(it!=Game.players.end()){
-      Game_locker.unlock();
-      goto begin;
-    }
-    Game_locker.unlock();
+    //Game_locker.lock();
+    //auto it=Game.players.find(name);
+    //if(it!=Game.players.end()){
+    //  Game_locker.unlock();
+    //  goto begin;
+    //}
+    //Game_locker.unlock();
   }
   void init(int fd){
     randname();
