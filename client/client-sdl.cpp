@@ -288,7 +288,7 @@ namespace draw{
       return tv.tv_usec / 10000000;
   }
   inline void obj_scr(int x,int y,int i){
-    if(!draw_texture(player_textures,x,y,i,(get_frame_step()%20))){
+    if(!draw_texture(player_textures,x,y,i,(get_frame_step()%Config.bombframe))){
         if(i==1){
             SDL_SetRenderDrawColor(renderer, 128,64,64,64);
         }else
@@ -311,7 +311,7 @@ namespace draw{
   }
   inline void player_scr(int x,int y,int f,Color c){
     if(f<4 && f>=0){
-        if(!draw_texture(player_textures,x,y,f,(get_frame_step()%20))){
+        if(!draw_texture(player_textures,x,y,f,(get_frame_step()%Config.playerframe))){
             SDL_SetRenderDrawColor(renderer, 128,128,128, 255);
             SDL_Rect sr;
             sr.x=(x-5)*5+152;
@@ -409,6 +409,16 @@ namespace draw{
         if(obj==1 && bk.owner==game::me.name){
           obj_abs(x,y,1);
         }
+      }
+    }
+    for(int x=bx;x<ex;x++){
+      for(int y=by;y<ey;y++){
+        if(x<0)continue;
+        if(y<0)continue;
+        if(game::map_size.x<=x)continue;
+        if(game::map_size.y<=y)continue;
+      
+        game::block & bk=game::gmap[x][y];
         
         string & player=bk.player;
         if(!player.empty()){
@@ -527,6 +537,7 @@ int main(int argn,char ** args){
   double x,y,dx,dy,adx,ady;
   
   Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048);
+  Mix_VolumeMusic(Config.volume);
   Mix_Music *sound=NULL;
   sound=Mix_LoadMUS("sound/SingingRivulet.ogg");
   if(sound)Mix_PlayMusic(sound,1);
