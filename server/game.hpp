@@ -20,7 +20,7 @@
 #define KBLU "\033[0;32;34m"
 #define KCYN_L "\033[1;36m"
 #define RESET "\033[0m"
-
+#define MaxPlayer 30
 
 int destroy_flag = 0;
 
@@ -37,7 +37,7 @@ class game{
   }
   class player{
     public:
-    bool start;
+    bool start,kick;
     int hp;
     int pow;
     int x;
@@ -50,6 +50,7 @@ class game{
     int update_time;
     player(){
       start=false;
+      kick=false;
       x=0;
       y=0;
       have=0;
@@ -127,7 +128,7 @@ class game{
           it.second.pow
         );
         int bttm=fabs(time(NULL)-it.second.update_time);
-        if(it.second.hp<0 || bttm>5){
+        if(it.second.hp<0 || bttm>5 || it.second.kick){
           //printf(KGRN "[Game]bttm:%d \n" RESET,bttm);
           quit(it.first);
           continue;
@@ -422,12 +423,13 @@ class game{
   virtual void getblock(){
     
     if(block_buffer_times==times)return;
+    
+    block_buffer_locker.lock();
     block_buffer_times=times;
     block_buffer.clear();
     
     char buf[256];
     
-    block_buffer_locker.lock();
     for(int x=0;x<maxX;x++){
       for(int y=0;y<maxY;y++){
         try{
@@ -474,6 +476,11 @@ struct per_session_data {
     char buf[256];
     
     Game_locker.lock();
+    if(Game.players.size()>MaxPlayer){
+        close(fd);
+        Game_locker.unlock();
+        return;
+    }
     Game.login(name,fd);
     Game.getblock();
     snprintf(buf,256,"cremap %d %d \n",Game.maxX,Game.maxY);

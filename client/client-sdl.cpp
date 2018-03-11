@@ -289,19 +289,41 @@ namespace draw{
   }
   inline void obj_scr(int x,int y,int i){
     if(!draw_texture(player_textures,x,y,i,(get_frame_step()%Config.bombframe))){
+        SDL_Rect sr;
         if(i==1){
             SDL_SetRenderDrawColor(renderer, 128,64,64,64);
+            sr.x=(x-5)*5+157;
+            sr.y=(y-5)*5+157;
+            sr.w=10;
+            sr.h=10;
+            SDL_RenderFillRect(renderer,&sr);
+            if((time(NULL)%2)==1)
+                SDL_SetRenderDrawColor(renderer, 128,0,0,64);
+            else
+                SDL_SetRenderDrawColor(renderer, 0,0,0,64);
+            sr.x=(x-5)*5+160;
+            sr.y=(y-5)*5+160;
+            sr.w=4;
+            sr.h=4;
+            SDL_RenderFillRect(renderer,&sr);
         }else
         if(i==2){
-            SDL_SetRenderDrawColor(renderer, 255,64,64,128);
+            SDL_SetRenderDrawColor(renderer, 0,64,64,64);
+            sr.x=(x-5)*5+152;
+            sr.y=(y-5)*5+152;
+            sr.w=20;
+            sr.h=20;
+            SDL_RenderFillRect(renderer,&sr);
+            if((time(NULL)%2)==1)
+                SDL_SetRenderDrawColor(renderer, 0,0,128,64);
+            else
+                SDL_SetRenderDrawColor(renderer, 0,0,0,64);
+            sr.x=(x-5)*5+157;
+            sr.y=(y-5)*5+157;
+            sr.w=10;
+            sr.h=10;
+            SDL_RenderFillRect(renderer,&sr);
         }
-        SDL_Rect sr;
-        sr.x=(x-5)*5+152;
-        sr.y=(y-5)*5+152;
-        sr.w=20;
-        sr.h=20;
-        SDL_RenderFillRect(renderer,&sr);
-
     }
   }
   inline void obj_abs(int x,int y,int i){
@@ -318,6 +340,24 @@ namespace draw{
             sr.y=(y-5)*5+152;
             sr.w=20;
             sr.h=20;
+            SDL_RenderFillRect(renderer,&sr);
+            SDL_SetRenderDrawColor(renderer, c.r,c.g,c.b,64);
+            sr.x=(x-5)*5+159;
+            sr.y=(y-5)*5+159;
+            sr.w=6;
+            sr.h=6;
+            if(f==0){
+                sr.x+=5;
+            }else
+            if(f==1){
+                sr.y+=5;
+            }else
+            if(f==2){
+                sr.x-=5;
+            }else
+            if(f==3){
+                sr.y-=5;
+            }
             SDL_RenderFillRect(renderer,&sr);
         }
     }
@@ -536,11 +576,13 @@ int main(int argn,char ** args){
   
   double x,y,dx,dy,adx,ady;
   
-  Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048);
-  Mix_VolumeMusic(Config.volume);
-  Mix_Music *sound=NULL;
-  sound=Mix_LoadMUS("sound/SingingRivulet.ogg");
-  if(sound)Mix_PlayMusic(sound,1);
+  if(Config.volume>0){
+    Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048);
+    Mix_VolumeMusic(Config.volume);
+    Mix_Music *sound=NULL;
+    sound=Mix_LoadMUS("sound/SingingRivulet.ogg");
+    if(sound)Mix_PlayMusic(sound,1);
+  }
   
   while(!gameover){
     game::locker.lock();
