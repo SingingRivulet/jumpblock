@@ -580,8 +580,8 @@ int main(int argn,char ** args){
     Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,2,2048);
     Mix_VolumeMusic(Config.volume);
     Mix_Music *sound=NULL;
-    sound=Mix_LoadMUS("sound/SingingRivulet.ogg");
-    if(sound)Mix_PlayMusic(sound,1);
+    sound=Mix_LoadMUS("sound/bgm.ogg");
+    if(sound)Mix_PlayMusic(sound,-1);
   }
   
   while(!gameover){
